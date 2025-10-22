@@ -12,13 +12,19 @@ variable "personal_access_token" {
 
 # Existing Project and Repository
 variable "project_name" {
-  description = "Name of the EXISTING Azure DevOps project"
+  description = "Name of the EXISTING Azure DevOps project that contains the repository"
   type        = string
 }
 
 variable "repository_name" {
   description = "Name of the EXISTING Git repository in the project"
   type        = string
+}
+
+variable "pipeline_project_name" {
+  description = "Name of the Azure DevOps project where pipelines will be created. If not specified, uses project_name (same as repository project)"
+  type        = string
+  default     = ""
 }
 
 variable "default_branch" {

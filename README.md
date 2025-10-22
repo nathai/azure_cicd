@@ -163,6 +163,29 @@ Hoặc vào Azure DevOps:
 
 ## Tùy chỉnh
 
+### Lưu Pipelines vào Project khác
+
+**Use case:** Repository nằm ở Project A, nhưng bạn muốn pipelines được tạo ở Project B.
+
+```hcl
+# terraform.tfvars
+project_name          = "SourceCodeProject"    # Project chứa repository
+repository_name       = "my-app-repo"
+pipeline_project_name = "DevOpsPipelinesProject"  # Project để lưu pipelines
+
+# Pipelines sẽ được tạo trong "DevOpsPipelinesProject"
+# nhưng sẽ reference code từ "SourceCodeProject/my-app-repo"
+```
+
+**Khi nào dùng:**
+- Tách biệt source code và CI/CD infrastructure
+- Một team quản lý code, team khác quản lý pipelines
+- Tổ chức theo business units
+
+**Lưu ý:**
+- Nếu không chỉ định `pipeline_project_name`, pipelines sẽ được tạo cùng project với repository
+- PAT cần có quyền truy cập **CẢ HAI** projects
+
 ### Chỉ tạo Build Pipeline
 
 Nếu chỉ muốn tạo build pipeline, xóa/disable file `release-pipeline.tf`:
@@ -552,6 +575,29 @@ Each pipeline is managed in a **separate file**:
 Easy to customize or disable individual components!
 
 ## Customization
+
+### Store Pipelines in Different Project
+
+**Use case:** Repository is in Project A, but you want pipelines created in Project B.
+
+```hcl
+# terraform.tfvars
+project_name          = "SourceCodeProject"      # Project with repository
+repository_name       = "my-app-repo"
+pipeline_project_name = "DevOpsPipelinesProject" # Project for pipelines
+
+# Pipelines will be created in "DevOpsPipelinesProject"
+# but will reference code from "SourceCodeProject/my-app-repo"
+```
+
+**When to use:**
+- Separate source code and CI/CD infrastructure
+- Different teams manage code vs pipelines
+- Organize by business units
+
+**Note:**
+- If `pipeline_project_name` is not specified, pipelines are created in same project as repository
+- PAT needs access to **BOTH** projects
 
 ### Create only Build Pipeline
 

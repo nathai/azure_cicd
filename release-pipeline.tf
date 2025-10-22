@@ -1,8 +1,9 @@
 # Release Pipeline (CD)
 # This creates a CD pipeline for deployments across environments
+# Pipeline is created in pipeline_project, but references repository from repo_project
 
 resource "azuredevops_build_definition" "release" {
-  project_id = data.azuredevops_project.project.id
+  project_id = data.azuredevops_project.pipeline_project.id
   name       = var.release_pipeline_name
 
   # Repository configuration
@@ -28,7 +29,7 @@ resource "azuredevops_build_definition" "release" {
 # resource "azuredevops_build_definition_variable" "release_vars" {
 #   for_each = var.release_pipeline_variables
 #
-#   project_id   = data.azuredevops_project.project.id
+#   project_id   = data.azuredevops_project.pipeline_project.id
 #   definition_id = azuredevops_build_definition.release.id
 #   name         = each.key
 #   value        = each.value.value

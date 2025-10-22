@@ -1,19 +1,36 @@
-# Project and Repository Outputs
-output "project_id" {
-  description = "ID of the Azure DevOps project"
-  value       = data.azuredevops_project.project.id
+# Repository Project Outputs
+output "repo_project_id" {
+  description = "ID of the Azure DevOps project that contains the repository"
+  value       = data.azuredevops_project.repo_project.id
 }
 
-output "project_name" {
-  description = "Name of the Azure DevOps project"
-  value       = data.azuredevops_project.project.name
+output "repo_project_name" {
+  description = "Name of the Azure DevOps project that contains the repository"
+  value       = data.azuredevops_project.repo_project.name
 }
 
-output "project_url" {
-  description = "URL of the Azure DevOps project"
-  value       = "${var.org_service_url}/${data.azuredevops_project.project.name}"
+output "repo_project_url" {
+  description = "URL of the Azure DevOps project that contains the repository"
+  value       = "${var.org_service_url}/${data.azuredevops_project.repo_project.name}"
 }
 
+# Pipeline Project Outputs
+output "pipeline_project_id" {
+  description = "ID of the Azure DevOps project where pipelines are created"
+  value       = data.azuredevops_project.pipeline_project.id
+}
+
+output "pipeline_project_name" {
+  description = "Name of the Azure DevOps project where pipelines are created"
+  value       = data.azuredevops_project.pipeline_project.name
+}
+
+output "pipeline_project_url" {
+  description = "URL of the Azure DevOps project where pipelines are created"
+  value       = "${var.org_service_url}/${data.azuredevops_project.pipeline_project.name}"
+}
+
+# Repository Outputs
 output "repository_id" {
   description = "ID of the Git repository"
   value       = data.azuredevops_git_repository.repo.id
@@ -42,7 +59,7 @@ output "build_pipeline_name" {
 
 output "build_pipeline_url" {
   description = "URL of the build pipeline"
-  value       = "${var.org_service_url}/${data.azuredevops_project.project.name}/_build?definitionId=${azuredevops_build_definition.build.id}"
+  value       = "${var.org_service_url}/${data.azuredevops_project.pipeline_project.name}/_build?definitionId=${azuredevops_build_definition.build.id}"
 }
 
 # Release Pipeline Outputs
@@ -58,7 +75,7 @@ output "release_pipeline_name" {
 
 output "release_pipeline_url" {
   description = "URL of the release pipeline"
-  value       = "${var.org_service_url}/${data.azuredevops_project.project.name}/_build?definitionId=${azuredevops_build_definition.release.id}"
+  value       = "${var.org_service_url}/${data.azuredevops_project.pipeline_project.name}/_build?definitionId=${azuredevops_build_definition.release.id}"
 }
 
 # Environments Outputs

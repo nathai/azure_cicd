@@ -3,8 +3,12 @@ org_service_url       = "https://dev.azure.com/your-organization"
 personal_access_token = "your-pat-token-here"
 
 # IMPORTANT: These must be existing resources in Azure DevOps
-project_name    = "YourExistingProject"
-repository_name = "your-existing-repo"
+project_name    = "YourExistingProject"  # Project that contains the repository
+repository_name = "your-existing-repo"   # Repository name
+
+# Optional: Specify a different project for pipelines
+# If not specified, pipelines will be created in the same project as the repository
+# pipeline_project_name = "YourPipelineProject"
 
 # Branch Configuration
 default_branch = "refs/heads/main"  # or "refs/heads/master"

@@ -1,10 +1,11 @@
 # Variable Group
 # Shared variables accessible by both build and release pipelines
+# Variable groups are created in the same project as the pipelines
 
 resource "azuredevops_variable_group" "pipeline_vars" {
   count = var.create_variable_group ? 1 : 0
 
-  project_id   = data.azuredevops_project.project.id
+  project_id   = data.azuredevops_project.pipeline_project.id
   name         = var.variable_group_name
   description  = var.variable_group_description
   allow_access = true
