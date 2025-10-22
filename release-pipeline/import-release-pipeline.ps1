@@ -133,6 +133,42 @@ try {
 }
 Write-Host ""
 
+# Parse REPO_URL if provided (auto-extract organization, project, repo names)
+if (-not [string]::IsNullOrEmpty($REPO_URL)) {
+    Write-Host "Parsing repository URL..." -ForegroundColor Blue
+
+    # Support both URL formats:
+    # https://dev.azure.com/{org}/{project}/_git/{repo}
+    # https://{org}.visualstudio.com/{project}/_git/{repo}
+
+    if ($REPO_URL -match 'https://dev\.azure\.com/([^/]+)/([^/]+)/_git/([^/]+)') {
+        $ORGANIZATION_NAME = $matches[1]
+        $REPO_PROJECT_NAME = $matches[2]
+        $REPO_NAME = $matches[3]
+        Write-Host "✓ Extracted from URL:" -ForegroundColor Green
+        Write-Host "  - Organization: $ORGANIZATION_NAME" -ForegroundColor Green
+        Write-Host "  - Project: $REPO_PROJECT_NAME" -ForegroundColor Green
+        Write-Host "  - Repository: $REPO_NAME" -ForegroundColor Green
+    }
+    elseif ($REPO_URL -match 'https://([^.]+)\.visualstudio\.com/([^/]+)/_git/([^/]+)') {
+        $ORGANIZATION_NAME = $matches[1]
+        $REPO_PROJECT_NAME = $matches[2]
+        $REPO_NAME = $matches[3]
+        Write-Host "✓ Extracted from URL:" -ForegroundColor Green
+        Write-Host "  - Organization: $ORGANIZATION_NAME" -ForegroundColor Green
+        Write-Host "  - Project: $REPO_PROJECT_NAME" -ForegroundColor Green
+        Write-Host "  - Repository: $REPO_NAME" -ForegroundColor Green
+    }
+    else {
+        Write-Host "Error: Invalid repository URL format" -ForegroundColor Red
+        Write-Host "Expected format:" -ForegroundColor Red
+        Write-Host "  https://dev.azure.com/{org}/{project}/_git/{repo}" -ForegroundColor Red
+        Write-Host "  OR" -ForegroundColor Red
+        Write-Host "  https://{org}.visualstudio.com/{project}/_git/{repo}" -ForegroundColor Red
+        exit 1
+    }
+}
+
 # Set PIPELINE_PROJECT_NAME to REPO_PROJECT_NAME if not specified
 if ([string]::IsNullOrEmpty($PIPELINE_PROJECT_NAME)) {
     $PIPELINE_PROJECT_NAME = $REPO_PROJECT_NAME

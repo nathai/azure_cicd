@@ -52,6 +52,40 @@ else
     exit 1
 fi
 
+# Parse REPO_URL if provided (auto-extract organization, project, repo names)
+if [ -n "$REPO_URL" ]; then
+    echo -e "${BLUE}Parsing repository URL...${NC}"
+
+    # Support both URL formats:
+    # https://dev.azure.com/{org}/{project}/_git/{repo}
+    # https://{org}.visualstudio.com/{project}/_git/{repo}
+
+    if [[ "$REPO_URL" =~ https://dev\.azure\.com/([^/]+)/([^/]+)/_git/([^/]+) ]]; then
+        ORGANIZATION_NAME="${BASH_REMATCH[1]}"
+        REPO_PROJECT_NAME="${BASH_REMATCH[2]}"
+        REPO_NAME="${BASH_REMATCH[3]}"
+        echo -e "${GREEN}✓ Extracted from URL:${NC}"
+        echo -e "${GREEN}  - Organization: ${ORGANIZATION_NAME}${NC}"
+        echo -e "${GREEN}  - Project: ${REPO_PROJECT_NAME}${NC}"
+        echo -e "${GREEN}  - Repository: ${REPO_NAME}${NC}"
+    elif [[ "$REPO_URL" =~ https://([^.]+)\.visualstudio\.com/([^/]+)/_git/([^/]+) ]]; then
+        ORGANIZATION_NAME="${BASH_REMATCH[1]}"
+        REPO_PROJECT_NAME="${BASH_REMATCH[2]}"
+        REPO_NAME="${BASH_REMATCH[3]}"
+        echo -e "${GREEN}✓ Extracted from URL:${NC}"
+        echo -e "${GREEN}  - Organization: ${ORGANIZATION_NAME}${NC}"
+        echo -e "${GREEN}  - Project: ${REPO_PROJECT_NAME}${NC}"
+        echo -e "${GREEN}  - Repository: ${REPO_NAME}${NC}"
+    else
+        echo -e "${RED}Error: Invalid repository URL format${NC}"
+        echo -e "${RED}Expected format:${NC}"
+        echo -e "${RED}  https://dev.azure.com/{org}/{project}/_git/{repo}${NC}"
+        echo -e "${RED}  OR${NC}"
+        echo -e "${RED}  https://{org}.visualstudio.com/{project}/_git/{repo}${NC}"
+        exit 1
+    fi
+fi
+
 # Set PIPELINE_PROJECT_NAME to REPO_PROJECT_NAME if not specified
 if [ -z "$PIPELINE_PROJECT_NAME" ]; then
     PIPELINE_PROJECT_NAME="$REPO_PROJECT_NAME"

@@ -2,7 +2,9 @@
 
 ## ⭐ Tính Năng Nổi Bật
 
+- ✅ **URL Parsing**: Paste repository URL → tự động extract organization, project, repo name
 - ✅ **Nhiều Pipelines**: Tạo nhiều pipeline configurations với các file `.env` riêng biệt
+- ✅ **Tên Pipeline Tùy Biến**: Mỗi pipeline có tên riêng, dễ phân biệt
 - ✅ **An Toàn**: File `.env` được git-ignore tự động, không lo lộ PAT token
 - ✅ **Linh Hoạt**: Cấu hình branches và deployment scripts dễ dàng
 - ✅ **Cross-Platform**: Hỗ trợ cả Linux/Mac (Bash) và Windows (PowerShell)
@@ -146,25 +148,57 @@ notepad pipelines.env
 
 ### BƯỚC 3: Điền Thông Tin Cấu Hình
 
-Điền các thông tin sau vào file config:
+Có **2 cách** để cấu hình:
+
+#### 🎯 CÁCH 1: Sử dụng Repository URL (Đơn Giản - Khuyến Nghị)
+
+Chỉ cần paste URL của repository Azure DevOps:
+
+```bash
+# Personal Access Token
+AZURE_DEVOPS_PAT="your-pat-token-here"
+
+# Repository URL - Script sẽ TỰ ĐỘNG extract organization, project, repo name
+REPO_URL="https://dev.azure.com/contoso/MyWebApp/_git/webapp-repo"
+
+# Tên pipeline (tùy chọn)
+PIPELINE_NAME="WebApp Release Pipeline"
+```
+
+**Lợi ích:**
+- ✅ Chỉ cần copy/paste URL từ trình duyệt
+- ✅ Không lo sai tên organization, project, hoặc repository
+- ✅ Nhanh và ít lỗi hơn
+
+**Lấy URL ở đâu?**
+1. Vào Azure DevOps → Repos → Files
+2. Copy URL trên thanh địa chỉ trình duyệt
+3. URL có dạng: `https://dev.azure.com/{org}/{project}/_git/{repo}`
+
+#### 📝 CÁCH 2: Điền Thủ Công (Nếu không dùng REPO_URL)
+
+Điền từng thông tin riêng lẻ:
 
 ```bash
 # ==========================================
 # PHẦN 1: Thông Tin Azure DevOps
 # ==========================================
 
-# Tên organization (từ URL: https://dev.azure.com/TEN-NAY)
-ORGANIZATION_NAME="ten-organization-cua-ban"
-
 # Personal Access Token (đã tạo ở bước chuẩn bị)
-PAT_TOKEN="token-cua-ban-o-day"
+AZURE_DEVOPS_PAT="token-cua-ban-o-day"
 
 # ==========================================
 # PHẦN 2: Thông Tin Repository và Pipeline
 # ==========================================
 
+# Để trống REPO_URL nếu muốn điền thủ công
+REPO_URL=""
+
 # Tên pipeline sẽ hiển thị trong Azure DevOps
 PIPELINE_NAME="Multi-Stage Auto Release"
+
+# Tên organization (từ URL: https://dev.azure.com/TEN-NAY)
+ORGANIZATION_NAME="ten-organization-cua-ban"
 
 # Tên project chứa repository (source code)
 REPO_PROJECT_NAME="ProjectChuaSourceCode"
@@ -255,17 +289,41 @@ echo "=========================================="
 echo "=========================================="'
 ```
 
-#### Ví Dụ Cấu Hình Thực Tế:
+#### ✨ Ví Dụ Cấu Hình Thực Tế
 
+**Ví dụ 1 - Sử dụng REPO_URL (Đơn giản):**
 ```bash
-ORGANIZATION_NAME="contoso"
-PAT_TOKEN="abcd1234efgh5678ijkl9012mnop3456qrst7890uvwx"
+# PAT Token
+AZURE_DEVOPS_PAT="abcd1234efgh5678ijkl9012mnop3456qrst7890uvwx"
 
-# Tên pipeline
+# Repository URL - Tự động extract org, project, repo
+REPO_URL="https://dev.azure.com/contoso/MyWebApp/_git/webapp-repo"
+
+# Pipeline name
 PIPELINE_NAME="WebApp Production Release"
 
+# Pipeline project (nếu khác với repo project)
+PIPELINE_PROJECT_NAME="DevOps-Pipelines"
+
+# Deployment groups (xem phần Deployment Groups bên dưới)
+DEVELOPMENT_DEPLOYMENT_GROUP_ID="12"
+DEVELOPMENT_TAGS="web-server,dev,frontend"
+# ... các config khác ...
+```
+
+**Ví dụ 2 - Điền thủ công:**
+```bash
+# PAT Token
+AZURE_DEVOPS_PAT="abcd1234efgh5678ijkl9012mnop3456qrst7890uvwx"
+
+# Để trống REPO_URL
+REPO_URL=""
+
+# Điền thủ công
+ORGANIZATION_NAME="contoso"
 REPO_PROJECT_NAME="MyWebApp"
 REPO_NAME="webapp-repo"
+PIPELINE_NAME="WebApp Production Release"
 DEFAULT_BRANCH="main"
 PIPELINE_PROJECT_NAME="DevOps-Pipelines"  # Pipeline lưu ở project khác
 
