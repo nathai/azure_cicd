@@ -1,0 +1,40 @@
+# Azure DevOps Organization Configuration
+org_service_url       = "https://dev.azure.com/your-organization"
+personal_access_token = "your-pat-token-here"
+
+# Project Configuration
+project_name        = "MyProject"
+project_description = "My Azure DevOps project managed by Terraform"
+repository_name     = "my-application"
+
+# Release Pipeline Configuration
+release_pipeline_name = "MyApp Release Pipeline"
+
+# Deployment Environments
+environments = [
+  {
+    name      = "Development"
+    order     = 1
+    approvers = []
+  },
+  {
+    name      = "Staging"
+    order     = 2
+    approvers = ["user1@example.com"]
+  },
+  {
+    name      = "Production"
+    order     = 3
+    approvers = ["user1@example.com", "user2@example.com"]
+  }
+]
+
+# Optional: Service Connection
+# service_connection_name = "Azure-Production"
+
+# Tags
+tags = {
+  Environment = "Production"
+  ManagedBy   = "Terraform"
+  Team        = "DevOps"
+}
