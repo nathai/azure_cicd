@@ -2,7 +2,8 @@
 # Requires PowerShell 5.1 or later
 
 param(
-    [string]$ConfigFile = "config.local.ps1"
+    [string]$EnvFile = "pipelines.env",
+    [switch]$Help
 )
 
 Write-Host "=====================================" -ForegroundColor Blue
@@ -10,19 +11,127 @@ Write-Host "Azure DevOps Release Pipeline Import" -ForegroundColor Blue
 Write-Host "=====================================" -ForegroundColor Blue
 Write-Host ""
 
+# Show usage if help requested
+if ($Help) {
+    Write-Host "Usage: .\import-release-pipeline.ps1 [-EnvFile <path>] [-Help]" -ForegroundColor White
+    Write-Host ""
+    Write-Host "Parameters:" -ForegroundColor White
+    Write-Host "  -EnvFile    Path to .env configuration file (default: pipelines.env)" -ForegroundColor White
+    Write-Host "  -Help       Show this help message" -ForegroundColor White
+    Write-Host ""
+    Write-Host "Examples:" -ForegroundColor Yellow
+    Write-Host "  .\import-release-pipeline.ps1                          # Uses pipelines.env" -ForegroundColor Gray
+    Write-Host "  .\import-release-pipeline.ps1 -EnvFile my-app.env    # Uses my-app.env" -ForegroundColor Gray
+    Write-Host "  .\import-release-pipeline.ps1 -EnvFile configs\prod.env  # Uses configs\prod.env" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "First time setup:" -ForegroundColor Yellow
+    Write-Host "  1. Copy template: Copy-Item pipelines.env.example pipelines.env" -ForegroundColor Gray
+    Write-Host "  2. Edit your values: notepad pipelines.env" -ForegroundColor Gray
+    Write-Host "  3. Run import: .\import-release-pipeline.ps1 pipelines.env" -ForegroundColor Gray
+    exit 0
+}
+
+# Function to parse bash-style .env file
+function Import-EnvFile {
+    param([string]$FilePath)
+
+    if (-not (Test-Path $FilePath)) {
+        throw "Configuration file not found: $FilePath"
+    }
+
+    $content = Get-Content -Path $FilePath -Raw
+    $lines = $content -split "`n"
+
+    $currentVar = $null
+    $currentValue = ""
+    $inMultilineString = $false
+    $quoteType = $null
+
+    foreach ($line in $lines) {
+        # Skip comments and empty lines when not in multiline
+        if (-not $inMultilineString -and ($line -match '^\s*#' -or $line -match '^\s*$')) {
+            continue
+        }
+
+        # Check if starting a new variable assignment
+        if (-not $inMultilineString -and $line -match '^([A-Z_][A-Z0-9_]*)=(.*)$') {
+            $varName = $matches[1]
+            $varValue = $matches[2]
+
+            # Check if value starts with a quote
+            if ($varValue -match "^'") {
+                # Single-quoted multiline string
+                $quoteType = "'"
+                $inMultilineString = $true
+                $currentVar = $varName
+                $currentValue = $varValue.Substring(1)  # Remove leading quote
+
+                # Check if it ends on the same line
+                if ($currentValue -match "'$") {
+                    $currentValue = $currentValue.Substring(0, $currentValue.Length - 1)
+                    Set-Variable -Name $varName -Value $currentValue -Scope Script
+                    $inMultilineString = $false
+                    $currentVar = $null
+                    $currentValue = ""
+                }
+            }
+            elseif ($varValue -match '^"') {
+                # Double-quoted string
+                $quoteType = '"'
+                $varValue = $varValue.Substring(1)  # Remove leading quote
+                if ($varValue -match '"$') {
+                    $varValue = $varValue.Substring(0, $varValue.Length - 1)
+                    Set-Variable -Name $varName -Value $varValue -Scope Script
+                } else {
+                    $inMultilineString = $true
+                    $currentVar = $varName
+                    $currentValue = $varValue
+                }
+            }
+            else {
+                # Unquoted value
+                Set-Variable -Name $varName -Value $varValue -Scope Script
+            }
+        }
+        elseif ($inMultilineString) {
+            # Continue reading multiline string
+            if ($line -match "$quoteType$") {
+                # End of multiline string
+                $currentValue += "`n" + $line.Substring(0, $line.Length - 1)
+                Set-Variable -Name $currentVar -Value $currentValue -Scope Script
+                $inMultilineString = $false
+                $currentVar = $null
+                $currentValue = ""
+                $quoteType = $null
+            } else {
+                # Continue multiline
+                $currentValue += "`n" + $line
+            }
+        }
+    }
+}
+
 # Load configuration
-if (Test-Path $ConfigFile) {
-    Write-Host "Loading configuration from $ConfigFile..." -ForegroundColor Green
-    . .\$ConfigFile
-} elseif (Test-Path "config.ps1") {
-    Write-Host "Warning: Using default config.ps1" -ForegroundColor Yellow
-    Write-Host "Please copy config.ps1 to config.local.ps1 and update values" -ForegroundColor Yellow
-    . .\config.ps1
-} else {
-    Write-Host "Error: No configuration file found!" -ForegroundColor Red
-    Write-Host "Please create config.local.ps1 from config.ps1" -ForegroundColor Red
+try {
+    Write-Host "Loading configuration from: $EnvFile" -ForegroundColor Green
+    Import-EnvFile -FilePath $EnvFile
+    Write-Host "Configuration loaded successfully" -ForegroundColor Green
+} catch {
+    Write-Host "Error: $_" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "First time setup:" -ForegroundColor Yellow
+    Write-Host "  1. Copy template: " -NoNewline
+    Write-Host "Copy-Item pipelines.env.example pipelines.env" -ForegroundColor Cyan
+    Write-Host "  2. Edit your values: " -NoNewline
+    Write-Host "notepad pipelines.env" -ForegroundColor Cyan
+    Write-Host "  3. Run import: " -NoNewline
+    Write-Host ".\import-release-pipeline.ps1 pipelines.env" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "Or specify a different config file:" -ForegroundColor Yellow
+    Write-Host "  .\import-release-pipeline.ps1 -EnvFile my-custom.env" -ForegroundColor Cyan
     exit 1
 }
+Write-Host ""
 
 # Set PIPELINE_PROJECT_NAME to REPO_PROJECT_NAME if not specified
 if ([string]::IsNullOrEmpty($PIPELINE_PROJECT_NAME)) {

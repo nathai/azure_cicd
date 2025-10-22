@@ -8,22 +8,47 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Parse command line arguments
+ENV_FILE="${1:-pipelines.env}"
+
 echo -e "${BLUE}=====================================${NC}"
 echo -e "${BLUE}Azure DevOps Release Pipeline Import${NC}"
 echo -e "${BLUE}=====================================${NC}"
 echo ""
 
+# Show usage if help requested
+if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
+    echo "Usage: $0 [ENV_FILE]"
+    echo ""
+    echo "Arguments:"
+    echo "  ENV_FILE    Path to .env configuration file (default: pipelines.env)"
+    echo ""
+    echo "Examples:"
+    echo "  $0                          # Uses pipelines.env"
+    echo "  $0 my-app.env              # Uses my-app.env"
+    echo "  $0 configs/production.env  # Uses configs/production.env"
+    echo ""
+    echo "First time setup:"
+    echo "  1. Copy template: cp pipelines.env.example pipelines.env"
+    echo "  2. Edit your values: nano pipelines.env"
+    echo "  3. Run import: $0 pipelines.env"
+    exit 0
+fi
+
 # Load configuration
-if [ -f "config.local.sh" ]; then
-    echo -e "${GREEN}Loading configuration from config.local.sh...${NC}"
-    source config.local.sh
-elif [ -f "config.sh" ]; then
-    echo -e "${YELLOW}Warning: Using default config.sh${NC}"
-    echo -e "${YELLOW}Please copy config.sh to config.local.sh and update values${NC}"
-    source config.sh
+if [ -f "$ENV_FILE" ]; then
+    echo -e "${GREEN}Loading configuration from: ${ENV_FILE}${NC}"
+    source "$ENV_FILE"
 else
-    echo -e "${RED}Error: No configuration file found!${NC}"
-    echo -e "${RED}Please create config.local.sh from config.sh${NC}"
+    echo -e "${RED}Error: Configuration file not found: ${ENV_FILE}${NC}"
+    echo ""
+    echo -e "${YELLOW}First time setup:${NC}"
+    echo "  1. Copy template: ${YELLOW}cp pipelines.env.example pipelines.env${NC}"
+    echo "  2. Edit your values: ${YELLOW}nano pipelines.env${NC}"
+    echo "  3. Run import: ${YELLOW}$0 pipelines.env${NC}"
+    echo ""
+    echo "Or specify a different config file:"
+    echo "  ${YELLOW}$0 my-custom.env${NC}"
     exit 1
 fi
 

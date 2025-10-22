@@ -1,6 +1,13 @@
-# Local configuration files (contain sensitive data)
+# Environment configuration files (contain sensitive data like PAT tokens)
+# Keep .env files local and never commit them to git
+*.env
+!*.env.example
+
+# Legacy config files (deprecated)
 config.local.sh
 config.local.ps1
+config.sh
+config.ps1
 
 # Processed/generated files
 release-definition.processed.json

@@ -1,5 +1,13 @@
 # Hướng Dẫn Tạo Azure DevOps Release Pipeline
 
+## ⭐ Tính Năng Nổi Bật
+
+- ✅ **Nhiều Pipelines**: Tạo nhiều pipeline configurations với các file `.env` riêng biệt
+- ✅ **An Toàn**: File `.env` được git-ignore tự động, không lo lộ PAT token
+- ✅ **Linh Hoạt**: Cấu hình branches và deployment scripts dễ dàng
+- ✅ **Cross-Platform**: Hỗ trợ cả Linux/Mac (Bash) và Windows (PowerShell)
+- ✅ **Tự Động**: Script tự động fetch IDs, convert formats, import pipeline
+
 ## Mục Lục
 1. [Yêu Cầu Hệ Thống](#yêu-cầu-hệ-thống)
 2. [Chuẩn Bị](#chuẩn-bị)
@@ -84,32 +92,51 @@ Bạn cần biết:
 
 ## Các Bước Thực Hiện
 
-### BƯỚC 1: Copy File Cấu Hình
+### BƯỚC 1: Tạo File Cấu Hình (.env)
 
-#### Với Linux/Mac:
+Solution này cho phép bạn tạo **nhiều pipelines khác nhau** với các file `.env` riêng biệt.
+
+#### Copy template file:
+
+**Linux/Mac:**
 ```bash
 cd release-pipeline
-cp config.sh config.local.sh
+cp pipelines.env.example pipelines.env
 ```
 
-#### Với Windows PowerShell:
+**Windows PowerShell:**
 ```powershell
 cd release-pipeline
-Copy-Item config.ps1 config.local.ps1
+Copy-Item pipelines.env.example pipelines.env
+```
+
+#### Tạo nhiều pipelines (Optional):
+
+Bạn có thể tạo nhiều file `.env` cho các pipelines khác nhau:
+
+```bash
+# Pipeline cho web application
+cp pipelines.env.example web-app.env
+
+# Pipeline cho API service
+cp pipelines.env.example api-service.env
+
+# Pipeline cho mobile backend
+cp pipelines.env.example mobile-backend.env
 ```
 
 ### BƯỚC 2: Chỉnh Sửa File Cấu Hình
 
-#### Với Linux/Mac - Mở file `config.local.sh`:
+**Linux/Mac:**
 ```bash
-nano config.local.sh
+nano pipelines.env
 # Hoặc dùng editor bạn thích: vim, code, gedit...
 ```
 
-#### Với Windows - Mở file `config.local.ps1`:
+**Windows:**
 ```powershell
-notepad config.local.ps1
-# Hoặc dùng: code config.local.ps1
+notepad pipelines.env
+# Hoặc dùng: code pipelines.env
 ```
 
 ### BƯỚC 3: Điền Thông Tin Cấu Hình
@@ -274,21 +301,56 @@ PRODUCTION_BRANCHES="prod,main"
 ### BƯỚC 5: Chạy Script Import
 
 #### Với Linux/Mac:
+
 ```bash
-# Cấp quyền thực thi cho script
+# Cấp quyền thực thi cho script (chỉ cần làm 1 lần)
 chmod +x import-release-pipeline.sh
 
-# Chạy script
+# Chạy script với file .env mặc định (pipelines.env)
 ./import-release-pipeline.sh
+
+# HOẶC chỉ định file .env cụ thể
+./import-release-pipeline.sh web-app.env
+./import-release-pipeline.sh api-service.env
+
+# Xem hướng dẫn sử dụng
+./import-release-pipeline.sh --help
 ```
 
 #### Với Windows PowerShell:
+
 ```powershell
 # Có thể cần cho phép chạy script (chỉ cần làm 1 lần)
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 
-# Chạy script
+# Chạy script với file .env mặc định (pipelines.env)
 .\import-release-pipeline.ps1
+
+# HOẶC chỉ định file .env cụ thể
+.\import-release-pipeline.ps1 -EnvFile web-app.env
+.\import-release-pipeline.ps1 -EnvFile api-service.env
+
+# Xem hướng dẫn sử dụng
+.\import-release-pipeline.ps1 -Help
+```
+
+#### Ví Dụ Workflow Nhiều Pipelines:
+
+```bash
+# Tạo và cấu hình 3 pipelines khác nhau
+cp pipelines.env.example web-frontend.env
+cp pipelines.env.example api-backend.env
+cp pipelines.env.example mobile-api.env
+
+# Chỉnh sửa từng file với thông tin riêng
+nano web-frontend.env   # Cấu hình cho web
+nano api-backend.env    # Cấu hình cho API
+nano mobile-api.env     # Cấu hình cho mobile
+
+# Import lần lượt từng pipeline
+./import-release-pipeline.sh web-frontend.env
+./import-release-pipeline.sh api-backend.env
+./import-release-pipeline.sh mobile-api.env
 ```
 
 ### BƯỚC 6: Đợi Script Hoàn Thành
@@ -600,18 +662,29 @@ Sau khi import pipeline, bạn có thể sửa scripts trực tiếp trong Azure
 
 ## Lưu Ý Bảo Mật
 
-1. **KHÔNG commit file `config.local.sh` hoặc `config.local.ps1` lên Git** (đã có trong .gitignore)
+1. **KHÔNG commit file `.env` lên Git**
+   - Tất cả `*.env` files đã được thêm vào `.gitignore` tự động
+   - Chỉ commit file `*.env.example` (template không có giá trị thực)
+   - Kiểm tra trước khi commit: `git status` (không thấy file `.env` là đúng)
 
 2. **PAT Token:**
-   - Lưu token ở nơi an toàn
-   - Đặt thời gian hết hạn phù hợp
+   - Lưu token ở nơi an toàn (password manager, Azure Key Vault)
+   - Đặt thời gian hết hạn phù hợp (khuyến nghị: 30-90 ngày)
    - Không chia sẻ token với người khác
-   - Xóa token khi không dùng nữa
+   - Xóa token khỏi Azure DevOps khi không dùng nữa
+   - Nếu token bị lộ: Xóa ngay và tạo token mới
 
 3. **Deployment Scripts:**
-   - Không hardcode passwords trong scripts
+   - Không hardcode passwords/secrets trong scripts
    - Sử dụng Azure Key Vault hoặc Variable Groups để lưu secrets
-   - Sử dụng service connections cho authentication
+   - Sử dụng service connections cho authentication với external services
+   - Sử dụng Managed Identities khi có thể
+
+4. **File `.env` Management:**
+   - Mỗi developer có file `.env` riêng với PAT token của mình
+   - Không share file `.env` qua email/chat
+   - Backup file `.env` vào nơi an toàn (encrypted storage)
+   - Sử dụng tên file rõ ràng: `web-app-prod.env`, `api-staging.env`
 
 ---
 
