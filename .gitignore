@@ -25,3 +25,15 @@ terraform.rc
 
 # Ignore lock files
 .terraform.lock.hcl
+
+# Azure DevOps - Local configuration files (contain sensitive data)
+config.local.sh
+config.local.ps1
+*.processed.json
+
+# Logs
+*.log
+
+# Temp files
+*.tmp
+*.temp
