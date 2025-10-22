@@ -4,7 +4,7 @@
   "comment": "Auto-generated release pipeline with multi-stage deployment",
   "artifacts": [
     {
-      "sourceId": "<PROJECT_ID>:<REPO_ID>",
+      "sourceId": "<REPO_PROJECT_ID>:<REPO_ID>",
       "type": "Git",
       "alias": "_<REPO_NAME>",
       "definitionReference": {
@@ -37,8 +37,8 @@
           "name": ""
         },
         "project": {
-          "id": "<PROJECT_ID>",
-          "name": "<PROJECT_NAME>"
+          "id": "<REPO_PROJECT_ID>",
+          "name": "<REPO_PROJECT_NAME>"
         }
       },
       "isPrimary": true
@@ -154,7 +154,8 @@
             "jobCancelTimeoutInMinutes": 1,
             "condition": "succeeded()",
             "overrideInputs": {},
-            "deploymentGroupId": "<DEVELOPMENT_DEPLOYMENT_GROUP_ID>"
+            "deploymentGroupId": "<DEVELOPMENT_DEPLOYMENT_GROUP_ID>",
+            "tags": "<DEVELOPMENT_TAGS>"
           },
           "rank": 1,
           "phaseType": 3,
@@ -298,7 +299,8 @@
             "jobCancelTimeoutInMinutes": 1,
             "condition": "succeeded()",
             "overrideInputs": {},
-            "deploymentGroupId": "<STAGING_DEPLOYMENT_GROUP_ID>"
+            "deploymentGroupId": "<STAGING_DEPLOYMENT_GROUP_ID>",
+            "tags": "<STAGING_TAGS>"
           },
           "rank": 1,
           "phaseType": 3,
@@ -442,7 +444,8 @@
             "jobCancelTimeoutInMinutes": 1,
             "condition": "succeeded()",
             "overrideInputs": {},
-            "deploymentGroupId": "<PRODUCTION_DEPLOYMENT_GROUP_ID>"
+            "deploymentGroupId": "<PRODUCTION_DEPLOYMENT_GROUP_ID>",
+            "tags": "<PRODUCTION_TAGS>"
           },
           "rank": 1,
           "phaseType": 3,

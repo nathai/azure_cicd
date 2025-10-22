@@ -24,9 +24,15 @@ if (Test-Path $ConfigFile) {
     exit 1
 }
 
+# Set PIPELINE_PROJECT_NAME to REPO_PROJECT_NAME if not specified
+if ([string]::IsNullOrEmpty($PIPELINE_PROJECT_NAME)) {
+    $PIPELINE_PROJECT_NAME = $REPO_PROJECT_NAME
+    Write-Host "Pipeline project not specified, using repo project: $PIPELINE_PROJECT_NAME" -ForegroundColor Blue
+}
+
 # Validate required variables
 if ([string]::IsNullOrEmpty($ORGANIZATION_NAME) -or
-    [string]::IsNullOrEmpty($PROJECT_NAME) -or
+    [string]::IsNullOrEmpty($REPO_PROJECT_NAME) -or
     [string]::IsNullOrEmpty($AZURE_DEVOPS_PAT) -or
     [string]::IsNullOrEmpty($REPO_NAME)) {
     Write-Host "Error: Missing required configuration!" -ForegroundColor Red
@@ -42,29 +48,55 @@ $headers = @{
 }
 
 Write-Host ""
-Write-Host "Step 1: Fetching Project ID..." -ForegroundColor Blue
+Write-Host "Step 1: Fetching Repository Project ID..." -ForegroundColor Blue
 
 try {
-    $projectUrl = "https://dev.azure.com/$ORGANIZATION_NAME/_apis/projects/$PROJECT_NAME`?api-version=7.1"
-    $projectResponse = Invoke-RestMethod -Uri $projectUrl -Method Get -Headers $headers
-    $PROJECT_ID = $projectResponse.id
+    $repoProjectUrl = "https://dev.azure.com/$ORGANIZATION_NAME/_apis/projects/$REPO_PROJECT_NAME`?api-version=7.1"
+    $repoProjectResponse = Invoke-RestMethod -Uri $repoProjectUrl -Method Get -Headers $headers
+    $REPO_PROJECT_ID = $repoProjectResponse.id
 
-    if ([string]::IsNullOrEmpty($PROJECT_ID)) {
-        throw "Could not fetch Project ID"
+    if ([string]::IsNullOrEmpty($REPO_PROJECT_ID)) {
+        throw "Could not fetch Repository Project ID"
     }
 
-    Write-Host "✓ Project ID: $PROJECT_ID" -ForegroundColor Green
+    Write-Host "✓ Repository Project: $REPO_PROJECT_NAME" -ForegroundColor Green
+    Write-Host "✓ Repository Project ID: $REPO_PROJECT_ID" -ForegroundColor Green
 } catch {
-    Write-Host "Error: Could not fetch Project ID" -ForegroundColor Red
+    Write-Host "Error: Could not fetch Repository Project ID" -ForegroundColor Red
     Write-Host $_.Exception.Message -ForegroundColor Red
     exit 1
 }
 
 Write-Host ""
-Write-Host "Step 2: Fetching Repository ID..." -ForegroundColor Blue
+Write-Host "Step 2: Fetching Pipeline Project ID..." -ForegroundColor Blue
 
 try {
-    $repoUrl = "https://dev.azure.com/$ORGANIZATION_NAME/$PROJECT_NAME/_apis/git/repositories/$REPO_NAME`?api-version=7.1"
+    if ($PIPELINE_PROJECT_NAME -eq $REPO_PROJECT_NAME) {
+        $PIPELINE_PROJECT_ID = $REPO_PROJECT_ID
+        Write-Host "✓ Using same project for pipelines" -ForegroundColor Green
+    } else {
+        $pipelineProjectUrl = "https://dev.azure.com/$ORGANIZATION_NAME/_apis/projects/$PIPELINE_PROJECT_NAME`?api-version=7.1"
+        $pipelineProjectResponse = Invoke-RestMethod -Uri $pipelineProjectUrl -Method Get -Headers $headers
+        $PIPELINE_PROJECT_ID = $pipelineProjectResponse.id
+
+        if ([string]::IsNullOrEmpty($PIPELINE_PROJECT_ID)) {
+            throw "Could not fetch Pipeline Project ID"
+        }
+    }
+
+    Write-Host "✓ Pipeline Project: $PIPELINE_PROJECT_NAME" -ForegroundColor Green
+    Write-Host "✓ Pipeline Project ID: $PIPELINE_PROJECT_ID" -ForegroundColor Green
+} catch {
+    Write-Host "Error: Could not fetch Pipeline Project ID" -ForegroundColor Red
+    Write-Host $_.Exception.Message -ForegroundColor Red
+    exit 1
+}
+
+Write-Host ""
+Write-Host "Step 3: Fetching Repository ID..." -ForegroundColor Blue
+
+try {
+    $repoUrl = "https://dev.azure.com/$ORGANIZATION_NAME/$REPO_PROJECT_NAME/_apis/git/repositories/$REPO_NAME`?api-version=7.1"
     $repoResponse = Invoke-RestMethod -Uri $repoUrl -Method Get -Headers $headers
     $REPO_ID = $repoResponse.id
 
@@ -72,6 +104,7 @@ try {
         throw "Could not fetch Repository ID"
     }
 
+    Write-Host "✓ Repository: $REPO_NAME" -ForegroundColor Green
     Write-Host "✓ Repository ID: $REPO_ID" -ForegroundColor Green
 } catch {
     Write-Host "Error: Could not fetch Repository ID" -ForegroundColor Red
@@ -80,7 +113,7 @@ try {
 }
 
 Write-Host ""
-Write-Host "Step 3: Validating Deployment Groups..." -ForegroundColor Blue
+Write-Host "Step 4: Validating Deployment Groups and Tags..." -ForegroundColor Blue
 
 if ([string]::IsNullOrEmpty($DEVELOPMENT_DEPLOYMENT_GROUP_ID) -or
     [string]::IsNullOrEmpty($STAGING_DEPLOYMENT_GROUP_ID) -or
@@ -88,7 +121,7 @@ if ([string]::IsNullOrEmpty($DEVELOPMENT_DEPLOYMENT_GROUP_ID) -or
     Write-Host "Warning: Deployment Group IDs not configured" -ForegroundColor Yellow
     Write-Host "Please update config.local.ps1 with deployment group IDs" -ForegroundColor Yellow
     Write-Host "You can find them at:" -ForegroundColor Yellow
-    Write-Host "https://dev.azure.com/$ORGANIZATION_NAME/$PROJECT_NAME/_settings/agentqueues" -ForegroundColor Yellow
+    Write-Host "https://dev.azure.com/$ORGANIZATION_NAME/$PIPELINE_PROJECT_NAME/_settings/agentqueues" -ForegroundColor Yellow
     Write-Host ""
     $continue = Read-Host "Continue anyway? (y/n)"
     if ($continue -ne 'y' -and $continue -ne 'Y') {
@@ -96,35 +129,48 @@ if ([string]::IsNullOrEmpty($DEVELOPMENT_DEPLOYMENT_GROUP_ID) -or
     }
 } else {
     Write-Host "✓ Development Deployment Group ID: $DEVELOPMENT_DEPLOYMENT_GROUP_ID" -ForegroundColor Green
+    Write-Host "  Tags: $DEVELOPMENT_TAGS" -ForegroundColor Green
     Write-Host "✓ Staging Deployment Group ID: $STAGING_DEPLOYMENT_GROUP_ID" -ForegroundColor Green
+    Write-Host "  Tags: $STAGING_TAGS" -ForegroundColor Green
     Write-Host "✓ Production Deployment Group ID: $PRODUCTION_DEPLOYMENT_GROUP_ID" -ForegroundColor Green
+    Write-Host "  Tags: $PRODUCTION_TAGS" -ForegroundColor Green
 }
 
 Write-Host ""
-Write-Host "Step 4: Preparing release definition..." -ForegroundColor Blue
+Write-Host "Step 5: Preparing release definition..." -ForegroundColor Blue
 
 # Read JSON template
 $jsonTemplate = Get-Content -Path "release-definition.json" -Raw
 
+# Convert comma-separated tags to JSON array format
+$developmentTagsJson = '["' + ($DEVELOPMENT_TAGS -replace ',','","') + '"]'
+$stagingTagsJson = '["' + ($STAGING_TAGS -replace ',','","') + '"]'
+$productionTagsJson = '["' + ($PRODUCTION_TAGS -replace ',','","') + '"]'
+
 # Replace placeholders
 $jsonDefinition = $jsonTemplate `
-    -replace '<PROJECT_ID>', $PROJECT_ID `
-    -replace '<PROJECT_NAME>', $PROJECT_NAME `
+    -replace '<REPO_PROJECT_ID>', $REPO_PROJECT_ID `
+    -replace '<REPO_PROJECT_NAME>', $REPO_PROJECT_NAME `
+    -replace '<PIPELINE_PROJECT_ID>', $PIPELINE_PROJECT_ID `
+    -replace '<PIPELINE_PROJECT_NAME>', $PIPELINE_PROJECT_NAME `
     -replace '<REPO_ID>', $REPO_ID `
     -replace '<REPO_NAME>', $REPO_NAME `
     -replace '<DEVELOPMENT_DEPLOYMENT_GROUP_ID>', $DEVELOPMENT_DEPLOYMENT_GROUP_ID `
+    -replace '<DEVELOPMENT_TAGS>', $developmentTagsJson `
     -replace '<STAGING_DEPLOYMENT_GROUP_ID>', $STAGING_DEPLOYMENT_GROUP_ID `
-    -replace '<PRODUCTION_DEPLOYMENT_GROUP_ID>', $PRODUCTION_DEPLOYMENT_GROUP_ID
+    -replace '<STAGING_TAGS>', $stagingTagsJson `
+    -replace '<PRODUCTION_DEPLOYMENT_GROUP_ID>', $PRODUCTION_DEPLOYMENT_GROUP_ID `
+    -replace '<PRODUCTION_TAGS>', $productionTagsJson
 
 # Save processed JSON
 $jsonDefinition | Out-File -FilePath "release-definition.processed.json" -Encoding utf8
 Write-Host "✓ Processed definition saved to: release-definition.processed.json" -ForegroundColor Green
 
 Write-Host ""
-Write-Host "Step 5: Importing release pipeline..." -ForegroundColor Blue
+Write-Host "Step 6: Importing release pipeline into $PIPELINE_PROJECT_NAME..." -ForegroundColor Blue
 
 try {
-    $importUrl = "https://vsrm.dev.azure.com/$ORGANIZATION_NAME/$PROJECT_NAME/_apis/release/definitions?api-version=7.1"
+    $importUrl = "https://vsrm.dev.azure.com/$ORGANIZATION_NAME/$PIPELINE_PROJECT_NAME/_apis/release/definitions?api-version=7.1"
     $importResponse = Invoke-RestMethod -Uri $importUrl -Method Post -Headers $headers -Body $jsonDefinition
 
     $RELEASE_ID = $importResponse.id
@@ -140,12 +186,19 @@ try {
     Write-Host "Release Pipeline ID: $RELEASE_ID" -ForegroundColor Green
     Write-Host "Pipeline Name: Multi-Stage Auto Release" -ForegroundColor Green
     Write-Host ""
+    Write-Host "Pipeline Details:" -ForegroundColor Blue
+    Write-Host "  - Created in: $PIPELINE_PROJECT_NAME" -ForegroundColor Blue
+    Write-Host "  - Source repo: $REPO_PROJECT_NAME/$REPO_NAME" -ForegroundColor Blue
+    Write-Host ""
     Write-Host "View your pipeline at:" -ForegroundColor Blue
-    Write-Host "https://dev.azure.com/$ORGANIZATION_NAME/$PROJECT_NAME/_release?definitionId=$RELEASE_ID" -ForegroundColor Blue
+    Write-Host "https://dev.azure.com/$ORGANIZATION_NAME/$PIPELINE_PROJECT_NAME/_release?definitionId=$RELEASE_ID" -ForegroundColor Blue
     Write-Host ""
     Write-Host "Next steps:" -ForegroundColor Yellow
     Write-Host "1. Configure deployment group IDs if not done" -ForegroundColor Yellow
-    Write-Host "2. Set up deployment group agents on target servers" -ForegroundColor Yellow
+    Write-Host "2. Tag servers in deployment groups with appropriate tags:" -ForegroundColor Yellow
+    Write-Host "   - Development: $DEVELOPMENT_TAGS" -ForegroundColor Yellow
+    Write-Host "   - Staging: $STAGING_TAGS" -ForegroundColor Yellow
+    Write-Host "   - Production: $PRODUCTION_TAGS" -ForegroundColor Yellow
     Write-Host "3. Test the pipeline by pushing to dev1 or dev2 branches" -ForegroundColor Yellow
     Write-Host ""
 

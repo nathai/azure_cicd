@@ -2,6 +2,21 @@
 
 This folder contains a complete Classic Release Pipeline definition for Azure DevOps with multi-stage deployment and auto-triggering based on branch names.
 
+## ⭐ New Features
+
+### **1. Separate Pipeline Project**
+Store pipelines in a different project than the repository!
+- Repository in Project A → Pipelines created in Project B
+- Perfect for separating code management from CI/CD infrastructure
+- Configure via `PIPELINE_PROJECT_NAME` variable (optional)
+
+### **2. Server Tags for Deployment Groups**
+Target specific servers using tags!
+- Tag servers: `web-server`, `api-server`, `database`, etc.
+- Each stage targets different tags: `dev`, `staging`, `production`
+- Deploy to subset of servers: e.g., only `web-server,production` tags
+- Configure per-stage tags in config file
+
 ## 📋 Pipeline Overview
 
 ### **Pipeline Name:** Multi-Stage Auto Release
@@ -10,9 +25,10 @@ This folder contains a complete Classic Release Pipeline definition for Azure De
 - ✅ **Artifact Source:** Azure Repos Git
 - ✅ **Auto-Trigger:** Based on branch names
 - ✅ **Multi-Stage:** Development → Staging → Production
-- ✅ **Deployment Groups:** Deploy to multiple servers
+- ✅ **Deployment Groups:** Deploy to multiple servers with tag filtering
 - ✅ **Inline Scripts:** No need for YAML files in repository
 - ✅ **Branch Mapping:** Different branches trigger different stages
+- ✅ **Separate Projects:** Pipelines and repo can be in different projects
 
 ---
 

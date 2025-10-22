@@ -27,8 +27,14 @@ else
     exit 1
 fi
 
+# Set PIPELINE_PROJECT_NAME to REPO_PROJECT_NAME if not specified
+if [ -z "$PIPELINE_PROJECT_NAME" ]; then
+    PIPELINE_PROJECT_NAME="$REPO_PROJECT_NAME"
+    echo -e "${BLUE}Pipeline project not specified, using repo project: ${PIPELINE_PROJECT_NAME}${NC}"
+fi
+
 # Validate required variables
-if [ -z "$ORGANIZATION_NAME" ] || [ -z "$PROJECT_NAME" ] || [ -z "$AZURE_DEVOPS_PAT" ] || [ -z "$REPO_NAME" ]; then
+if [ -z "$ORGANIZATION_NAME" ] || [ -z "$REPO_PROJECT_NAME" ] || [ -z "$AZURE_DEVOPS_PAT" ] || [ -z "$REPO_NAME" ]; then
     echo -e "${RED}Error: Missing required configuration!${NC}"
     echo -e "${RED}Please update config.local.sh with your values${NC}"
     exit 1
@@ -38,28 +44,53 @@ fi
 AUTH_HEADER="Authorization: Basic $(echo -n :$AZURE_DEVOPS_PAT | base64)"
 
 echo ""
-echo -e "${BLUE}Step 1: Fetching Project ID...${NC}"
-PROJECT_RESPONSE=$(curl -s -X GET \
+echo -e "${BLUE}Step 1: Fetching Repository Project ID...${NC}"
+REPO_PROJECT_RESPONSE=$(curl -s -X GET \
   -H "$AUTH_HEADER" \
   -H "Content-Type: application/json" \
-  "https://dev.azure.com/${ORGANIZATION_NAME}/_apis/projects/${PROJECT_NAME}?api-version=7.1")
+  "https://dev.azure.com/${ORGANIZATION_NAME}/_apis/projects/${REPO_PROJECT_NAME}?api-version=7.1")
 
-PROJECT_ID=$(echo $PROJECT_RESPONSE | grep -o '"id":"[^"]*' | head -1 | cut -d'"' -f4)
+REPO_PROJECT_ID=$(echo $REPO_PROJECT_RESPONSE | grep -o '"id":"[^"]*' | head -1 | cut -d'"' -f4)
 
-if [ -z "$PROJECT_ID" ]; then
-    echo -e "${RED}Error: Could not fetch Project ID${NC}"
-    echo -e "${RED}Response: $PROJECT_RESPONSE${NC}"
+if [ -z "$REPO_PROJECT_ID" ]; then
+    echo -e "${RED}Error: Could not fetch Repository Project ID${NC}"
+    echo -e "${RED}Response: $REPO_PROJECT_RESPONSE${NC}"
     exit 1
 fi
 
-echo -e "${GREEN}✓ Project ID: $PROJECT_ID${NC}"
+echo -e "${GREEN}✓ Repository Project: ${REPO_PROJECT_NAME}${NC}"
+echo -e "${GREEN}✓ Repository Project ID: ${REPO_PROJECT_ID}${NC}"
 
 echo ""
-echo -e "${BLUE}Step 2: Fetching Repository ID...${NC}"
+echo -e "${BLUE}Step 2: Fetching Pipeline Project ID...${NC}"
+
+if [ "$PIPELINE_PROJECT_NAME" = "$REPO_PROJECT_NAME" ]; then
+    PIPELINE_PROJECT_ID="$REPO_PROJECT_ID"
+    echo -e "${GREEN}✓ Using same project for pipelines${NC}"
+else
+    PIPELINE_PROJECT_RESPONSE=$(curl -s -X GET \
+      -H "$AUTH_HEADER" \
+      -H "Content-Type: application/json" \
+      "https://dev.azure.com/${ORGANIZATION_NAME}/_apis/projects/${PIPELINE_PROJECT_NAME}?api-version=7.1")
+
+    PIPELINE_PROJECT_ID=$(echo $PIPELINE_PROJECT_RESPONSE | grep -o '"id":"[^"]*' | head -1 | cut -d'"' -f4)
+
+    if [ -z "$PIPELINE_PROJECT_ID" ]; then
+        echo -e "${RED}Error: Could not fetch Pipeline Project ID${NC}"
+        echo -e "${RED}Response: $PIPELINE_PROJECT_RESPONSE${NC}"
+        exit 1
+    fi
+fi
+
+echo -e "${GREEN}✓ Pipeline Project: ${PIPELINE_PROJECT_NAME}${NC}"
+echo -e "${GREEN}✓ Pipeline Project ID: ${PIPELINE_PROJECT_ID}${NC}"
+
+echo ""
+echo -e "${BLUE}Step 3: Fetching Repository ID...${NC}"
 REPO_RESPONSE=$(curl -s -X GET \
   -H "$AUTH_HEADER" \
   -H "Content-Type: application/json" \
-  "https://dev.azure.com/${ORGANIZATION_NAME}/${PROJECT_NAME}/_apis/git/repositories/${REPO_NAME}?api-version=7.1")
+  "https://dev.azure.com/${ORGANIZATION_NAME}/${REPO_PROJECT_NAME}/_apis/git/repositories/${REPO_NAME}?api-version=7.1")
 
 REPO_ID=$(echo $REPO_RESPONSE | grep -o '"id":"[^"]*' | head -1 | cut -d'"' -f4)
 
@@ -69,16 +100,17 @@ if [ -z "$REPO_ID" ]; then
     exit 1
 fi
 
-echo -e "${GREEN}✓ Repository ID: $REPO_ID${NC}"
+echo -e "${GREEN}✓ Repository: ${REPO_NAME}${NC}"
+echo -e "${GREEN}✓ Repository ID: ${REPO_ID}${NC}"
 
 echo ""
-echo -e "${BLUE}Step 3: Validating Deployment Groups...${NC}"
+echo -e "${BLUE}Step 4: Validating Deployment Groups and Tags...${NC}"
 
 if [ -z "$DEVELOPMENT_DEPLOYMENT_GROUP_ID" ] || [ -z "$STAGING_DEPLOYMENT_GROUP_ID" ] || [ -z "$PRODUCTION_DEPLOYMENT_GROUP_ID" ]; then
     echo -e "${YELLOW}Warning: Deployment Group IDs not configured${NC}"
     echo -e "${YELLOW}Please update config.local.sh with deployment group IDs${NC}"
     echo -e "${YELLOW}You can find them at:${NC}"
-    echo -e "${YELLOW}https://dev.azure.com/${ORGANIZATION_NAME}/${PROJECT_NAME}/_settings/agentqueues${NC}"
+    echo -e "${YELLOW}https://dev.azure.com/${ORGANIZATION_NAME}/${PIPELINE_PROJECT_NAME}/_settings/agentqueues${NC}"
     echo ""
     read -p "Continue anyway? (y/n) " -n 1 -r
     echo
@@ -86,39 +118,52 @@ if [ -z "$DEVELOPMENT_DEPLOYMENT_GROUP_ID" ] || [ -z "$STAGING_DEPLOYMENT_GROUP_
         exit 1
     fi
 else
-    echo -e "${GREEN}✓ Development Deployment Group ID: $DEVELOPMENT_DEPLOYMENT_GROUP_ID${NC}"
-    echo -e "${GREEN}✓ Staging Deployment Group ID: $STAGING_DEPLOYMENT_GROUP_ID${NC}"
-    echo -e "${GREEN}✓ Production Deployment Group ID: $PRODUCTION_DEPLOYMENT_GROUP_ID${NC}"
+    echo -e "${GREEN}✓ Development Deployment Group ID: ${DEVELOPMENT_DEPLOYMENT_GROUP_ID}${NC}"
+    echo -e "${GREEN}  Tags: ${DEVELOPMENT_TAGS}${NC}"
+    echo -e "${GREEN}✓ Staging Deployment Group ID: ${STAGING_DEPLOYMENT_GROUP_ID}${NC}"
+    echo -e "${GREEN}  Tags: ${STAGING_TAGS}${NC}"
+    echo -e "${GREEN}✓ Production Deployment Group ID: ${PRODUCTION_DEPLOYMENT_GROUP_ID}${NC}"
+    echo -e "${GREEN}  Tags: ${PRODUCTION_TAGS}${NC}"
 fi
 
 echo ""
-echo -e "${BLUE}Step 4: Preparing release definition...${NC}"
+echo -e "${BLUE}Step 5: Preparing release definition...${NC}"
 
 # Read JSON template
 JSON_TEMPLATE=$(cat release-definition.json)
 
+# Convert comma-separated tags to JSON array format
+DEVELOPMENT_TAGS_JSON=$(echo "$DEVELOPMENT_TAGS" | sed 's/,/","/g' | sed 's/^/["/' | sed 's/$/"]/')
+STAGING_TAGS_JSON=$(echo "$STAGING_TAGS" | sed 's/,/","/g' | sed 's/^/["/' | sed 's/$/"]/')
+PRODUCTION_TAGS_JSON=$(echo "$PRODUCTION_TAGS" | sed 's/,/","/g' | sed 's/^/["/' | sed 's/$/"]/')
+
 # Replace placeholders
 JSON_DEFINITION=$(echo "$JSON_TEMPLATE" | \
-  sed "s/<PROJECT_ID>/$PROJECT_ID/g" | \
-  sed "s/<PROJECT_NAME>/$PROJECT_NAME/g" | \
+  sed "s/<REPO_PROJECT_ID>/$REPO_PROJECT_ID/g" | \
+  sed "s/<REPO_PROJECT_NAME>/$REPO_PROJECT_NAME/g" | \
+  sed "s/<PIPELINE_PROJECT_ID>/$PIPELINE_PROJECT_ID/g" | \
+  sed "s/<PIPELINE_PROJECT_NAME>/$PIPELINE_PROJECT_NAME/g" | \
   sed "s/<REPO_ID>/$REPO_ID/g" | \
   sed "s/<REPO_NAME>/$REPO_NAME/g" | \
   sed "s/<DEVELOPMENT_DEPLOYMENT_GROUP_ID>/$DEVELOPMENT_DEPLOYMENT_GROUP_ID/g" | \
+  sed "s|<DEVELOPMENT_TAGS>|$DEVELOPMENT_TAGS_JSON|g" | \
   sed "s/<STAGING_DEPLOYMENT_GROUP_ID>/$STAGING_DEPLOYMENT_GROUP_ID/g" | \
-  sed "s/<PRODUCTION_DEPLOYMENT_GROUP_ID>/$PRODUCTION_DEPLOYMENT_GROUP_ID/g")
+  sed "s|<STAGING_TAGS>|$STAGING_TAGS_JSON|g" | \
+  sed "s/<PRODUCTION_DEPLOYMENT_GROUP_ID>/$PRODUCTION_DEPLOYMENT_GROUP_ID/g" | \
+  sed "s|<PRODUCTION_TAGS>|$PRODUCTION_TAGS_JSON|g")
 
 # Save processed JSON
 echo "$JSON_DEFINITION" > release-definition.processed.json
 echo -e "${GREEN}✓ Processed definition saved to: release-definition.processed.json${NC}"
 
 echo ""
-echo -e "${BLUE}Step 5: Importing release pipeline...${NC}"
+echo -e "${BLUE}Step 6: Importing release pipeline into ${PIPELINE_PROJECT_NAME}...${NC}"
 
 IMPORT_RESPONSE=$(curl -s -X POST \
   -H "$AUTH_HEADER" \
   -H "Content-Type: application/json" \
   -d "$JSON_DEFINITION" \
-  "https://vsrm.dev.azure.com/${ORGANIZATION_NAME}/${PROJECT_NAME}/_apis/release/definitions?api-version=7.1")
+  "https://vsrm.dev.azure.com/${ORGANIZATION_NAME}/${PIPELINE_PROJECT_NAME}/_apis/release/definitions?api-version=7.1")
 
 # Check if import was successful
 RELEASE_ID=$(echo $IMPORT_RESPONSE | grep -o '"id":[0-9]*' | head -1 | cut -d':' -f2)
@@ -134,14 +179,21 @@ echo ""
 echo -e "${GREEN}=====================================${NC}"
 echo -e "${GREEN}✓ Success!${NC}"
 echo -e "${GREEN}=====================================${NC}"
-echo -e "${GREEN}Release Pipeline ID: $RELEASE_ID${NC}"
+echo -e "${GREEN}Release Pipeline ID: ${RELEASE_ID}${NC}"
 echo -e "${GREEN}Pipeline Name: Multi-Stage Auto Release${NC}"
 echo ""
+echo -e "${BLUE}Pipeline Details:${NC}"
+echo -e "${BLUE}  - Created in: ${PIPELINE_PROJECT_NAME}${NC}"
+echo -e "${BLUE}  - Source repo: ${REPO_PROJECT_NAME}/${REPO_NAME}${NC}"
+echo ""
 echo -e "${BLUE}View your pipeline at:${NC}"
-echo -e "${BLUE}https://dev.azure.com/${ORGANIZATION_NAME}/${PROJECT_NAME}/_release?definitionId=${RELEASE_ID}${NC}"
+echo -e "${BLUE}https://dev.azure.com/${ORGANIZATION_NAME}/${PIPELINE_PROJECT_NAME}/_release?definitionId=${RELEASE_ID}${NC}"
 echo ""
 echo -e "${YELLOW}Next steps:${NC}"
 echo -e "${YELLOW}1. Configure deployment group IDs if not done${NC}"
-echo -e "${YELLOW}2. Set up deployment group agents on target servers${NC}"
+echo -e "${YELLOW}2. Tag servers in deployment groups with appropriate tags:${NC}"
+echo -e "${YELLOW}   - Development: ${DEVELOPMENT_TAGS}${NC}"
+echo -e "${YELLOW}   - Staging: ${STAGING_TAGS}${NC}"
+echo -e "${YELLOW}   - Production: ${PRODUCTION_TAGS}${NC}"
 echo -e "${YELLOW}3. Test the pipeline by pushing to dev1 or dev2 branches${NC}"
 echo ""
