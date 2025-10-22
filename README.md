@@ -4,15 +4,36 @@ This repository contains Terraform configuration to create and manage Azure DevO
 
 [Vietnamese version / Phiên bản tiếng Việt](#phiên-bản-tiếng-việt)
 
+## Two Usage Modes
+
+This repository supports **two different usage modes**:
+
+### 1. Full Setup Mode (Create Everything)
+Create a complete Azure DevOps setup from scratch including project, repository, and pipelines.
+
+**Use when:** Starting a new project
+**What gets created:** Project + Repository + Pipelines + Environments + Variable Groups
+
+📖 [See Quick Start below](#quick-start)
+
+### 2. Pipelines-Only Mode (Use Existing Project/Repo)
+Add pipelines to your existing Azure DevOps project and repository.
+
+**Use when:** You already have a project and repo created manually
+**What gets created:** Only Pipelines + Environments + Variable Groups
+
+📖 [See Existing Resources Guide](README-EXISTING-RESOURCES.md)
+
 ## Features
 
-- **Project Management**: Automatically create Azure DevOps projects
-- **Repository Setup**: Set up Git repositories
+- **Project Management**: Automatically create Azure DevOps projects (Full mode)
+- **Repository Setup**: Set up Git repositories (Full mode)
 - **Build Pipelines**: Configure CI pipelines
 - **Release Pipelines**: Create multi-stage CD pipelines
 - **Environments**: Manage deployment environments (Dev, Staging, Production)
 - **Variable Groups**: Centralized variable management
 - **YAML Pipelines**: Modern YAML-based pipeline configuration
+- **Flexible**: Works with new or existing projects
 
 ## Prerequisites
 
@@ -235,15 +256,36 @@ MIT License - feel free to use and modify
 
 Repository này chứa cấu hình Terraform để tạo và quản lý release pipelines trong Azure DevOps một cách tự động.
 
+## Hai chế độ sử dụng
+
+Repository này hỗ trợ **hai chế độ sử dụng khác nhau**:
+
+### 1. Chế độ Đầy đủ (Tạo mới toàn bộ)
+Tạo một setup Azure DevOps hoàn chỉnh từ đầu bao gồm project, repository và pipelines.
+
+**Sử dụng khi:** Bắt đầu project mới
+**Tạo ra:** Project + Repository + Pipelines + Environments + Variable Groups
+
+📖 [Xem Hướng dẫn nhanh bên dưới](#hướng-dẫn-nhanh)
+
+### 2. Chế độ Chỉ Pipelines (Sử dụng Project/Repo có sẵn)
+Thêm pipelines vào Azure DevOps project và repository đã có sẵn của bạn.
+
+**Sử dụng khi:** Bạn đã có project và repo được tạo bằng tay
+**Tạo ra:** Chỉ Pipelines + Environments + Variable Groups
+
+📖 [Xem Hướng dẫn Existing Resources](README-EXISTING-RESOURCES.md)
+
 ## Tính năng
 
-- **Quản lý Project**: Tự động tạo Azure DevOps projects
-- **Thiết lập Repository**: Cấu hình Git repositories
+- **Quản lý Project**: Tự động tạo Azure DevOps projects (Chế độ đầy đủ)
+- **Thiết lập Repository**: Cấu hình Git repositories (Chế độ đầy đủ)
 - **Build Pipelines**: Cấu hình CI pipelines
 - **Release Pipelines**: Tạo CD pipelines nhiều giai đoạn
 - **Environments**: Quản lý môi trường triển khai (Dev, Staging, Production)
 - **Variable Groups**: Quản lý biến tập trung
 - **YAML Pipelines**: Cấu hình pipeline hiện đại dựa trên YAML
+- **Linh hoạt**: Hoạt động với project mới hoặc có sẵn
 
 ## Yêu cầu
 

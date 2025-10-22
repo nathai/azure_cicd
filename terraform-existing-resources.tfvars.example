@@ -1,0 +1,89 @@
+# Configuration for using existing Azure DevOps project and repository
+# Use this when you already have a project and repo created manually
+
+# Azure DevOps Organization Configuration
+org_service_url       = "https://dev.azure.com/your-organization"
+personal_access_token = "your-pat-token-here"
+
+# Existing Project and Repository (these must already exist!)
+project_name    = "ExistingProject"  # Name of your existing project
+repository_name = "existing-repo"     # Name of your existing repository
+
+# Pipeline Configuration
+build_pipeline_name   = "My-CI-Pipeline"
+release_pipeline_name = "My-Release-Pipeline"
+
+# Branch Configuration
+default_branch = "refs/heads/main"  # or "refs/heads/master"
+
+# Pipeline YAML Paths (relative to repository root)
+build_pipeline_path   = "azure-pipelines.yml"
+release_pipeline_path = "azure-release-pipeline.yml"
+
+# Variable Group
+variable_group_name = "MyApp-Release-Variables"
+
+# Pipeline Variables
+pipeline_variables = {
+  environment = {
+    value     = "production"
+    is_secret = false
+  }
+  api_endpoint = {
+    value     = "https://api.example.com"
+    is_secret = false
+  }
+  api_key = {
+    value     = "your-secret-api-key"
+    is_secret = true
+  }
+  database_connection = {
+    value     = "connection-string-here"
+    is_secret = true
+  }
+}
+
+# Deployment Environments
+environments = [
+  {
+    name      = "Development"
+    order     = 1
+    approvers = []
+  },
+  {
+    name      = "QA"
+    order     = 2
+    approvers = []
+  },
+  {
+    name      = "Staging"
+    order     = 3
+    approvers = ["devlead@example.com"]
+  },
+  {
+    name      = "Production"
+    order     = 4
+    approvers = ["manager@example.com", "cto@example.com"]
+  }
+]
+
+# Optional: Azure Service Connection
+create_service_connection = false
+# If you want to create service connection, set to true and provide:
+# service_connection_name   = "Azure-Production"
+# azure_service_principal_id  = "your-sp-id"
+# azure_service_principal_key = "your-sp-key"
+# azure_tenant_id            = "your-tenant-id"
+# azure_subscription_id      = "your-subscription-id"
+# azure_subscription_name    = "Your Subscription Name"
+
+# Optional: Custom Agent Pool
+# agent_pool_name = "Self-Hosted-Pool"
+
+# Tags
+tags = {
+  Environment = "Production"
+  ManagedBy   = "Terraform"
+  Team        = "DevOps"
+  Purpose     = "Pipelines-Only"
+}
