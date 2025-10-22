@@ -43,3 +43,95 @@ $STAGING_TAGS = "web-server,staging"  # Comma-separated tags
 # Production Stage
 $PRODUCTION_DEPLOYMENT_GROUP_ID = ""
 $PRODUCTION_TAGS = "web-server,production"  # Comma-separated tags
+
+# ==========================================
+# Branch Filters Configuration
+# ==========================================
+# Configure which branches trigger which stages
+# Multiple branches separated by comma (no spaces)
+
+# Default branch for manual releases
+$DEFAULT_BRANCH = "main"
+
+# Development Stage - triggered by these branches
+$DEVELOPMENT_BRANCHES = "dev1,dev2"
+
+# Staging Stage - triggered by these branches
+$STAGING_BRANCHES = "stage"
+
+# Production Stage - triggered by these branches
+$PRODUCTION_BRANCHES = "prod"
+
+# ==========================================
+# Deployment Scripts Configuration
+# ==========================================
+# Customize deployment scripts for each stage
+
+# Development Stage Script
+$DEVELOPMENT_SCRIPT = @'
+#!/bin/bash
+echo "=========================================="
+echo "Starting Deployment to Development"
+echo "=========================================="
+echo "Server: $(hostname)"
+echo "User: $(whoami)"
+echo "Working directory: $(pwd)"
+echo "Artifact location: $(System.DefaultWorkingDirectory)"
+echo ""
+
+# Add your deployment commands here
+# Example:
+# sudo systemctl stop myapp-dev
+# sudo cp -r $(System.DefaultWorkingDirectory)/_MyApp/drop/* /var/www/dev/
+# sudo chown -R www-data:www-data /var/www/dev/
+# sudo systemctl start myapp-dev
+
+echo "Deployment to Development completed successfully!"
+echo "=========================================="
+'@
+
+# Staging Stage Script
+$STAGING_SCRIPT = @'
+#!/bin/bash
+echo "=========================================="
+echo "Starting Deployment to Staging"
+echo "=========================================="
+echo "Server: $(hostname)"
+echo "User: $(whoami)"
+echo "Working directory: $(pwd)"
+echo "Artifact location: $(System.DefaultWorkingDirectory)"
+echo ""
+
+# Add your deployment commands here
+# Example:
+# sudo systemctl stop myapp-staging
+# sudo cp -r $(System.DefaultWorkingDirectory)/_MyApp/drop/* /var/www/staging/
+# sudo chown -R www-data:www-data /var/www/staging/
+# sudo systemctl start myapp-staging
+
+echo "Deployment to Staging completed successfully!"
+echo "=========================================="
+'@
+
+# Production Stage Script
+$PRODUCTION_SCRIPT = @'
+#!/bin/bash
+echo "=========================================="
+echo "Starting Deployment to Production"
+echo "=========================================="
+echo "Server: $(hostname)"
+echo "User: $(whoami)"
+echo "Working directory: $(pwd)"
+echo "Artifact location: $(System.DefaultWorkingDirectory)"
+echo ""
+
+# Add your deployment commands here
+# Example:
+# sudo systemctl stop myapp
+# sudo cp -r $(System.DefaultWorkingDirectory)/_MyApp/drop/* /var/www/production/
+# sudo chown -R www-data:www-data /var/www/production/
+# sudo systemctl start myapp
+
+echo "Deployment to Production completed successfully!"
+echo "=========================================="
+'@

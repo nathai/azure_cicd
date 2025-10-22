@@ -139,6 +139,35 @@ if ([string]::IsNullOrEmpty($DEVELOPMENT_DEPLOYMENT_GROUP_ID) -or
 Write-Host ""
 Write-Host "Step 5: Preparing release definition..." -ForegroundColor Blue
 
+# Function to convert comma-separated branches to JSON trigger conditions
+function Convert-BranchesToJson {
+    param([string]$branches)
+
+    $branchArray = $branches -split ','
+    $triggerConditions = @()
+
+    foreach ($branch in $branchArray) {
+        $triggerConditions += @{
+            sourceBranch = $branch.Trim()
+            tags = @()
+            useBuildDefinitionBranch = $false
+            createReleaseOnBuildTagging = $false
+        }
+    }
+
+    return ($triggerConditions | ConvertTo-Json -Depth 10 -Compress)
+}
+
+# Convert branches to JSON trigger conditions
+$developmentBranchesJson = Convert-BranchesToJson -branches $DEVELOPMENT_BRANCHES
+$stagingBranchesJson = Convert-BranchesToJson -branches $STAGING_BRANCHES
+$productionBranchesJson = Convert-BranchesToJson -branches $PRODUCTION_BRANCHES
+
+Write-Host "✓ Branch triggers configured:" -ForegroundColor Green
+Write-Host "  - Development: $DEVELOPMENT_BRANCHES" -ForegroundColor Green
+Write-Host "  - Staging: $STAGING_BRANCHES" -ForegroundColor Green
+Write-Host "  - Production: $PRODUCTION_BRANCHES" -ForegroundColor Green
+
 # Read JSON template
 $jsonTemplate = Get-Content -Path "release-definition.json" -Raw
 
@@ -146,6 +175,11 @@ $jsonTemplate = Get-Content -Path "release-definition.json" -Raw
 $developmentTagsJson = '["' + ($DEVELOPMENT_TAGS -replace ',','","') + '"]'
 $stagingTagsJson = '["' + ($STAGING_TAGS -replace ',','","') + '"]'
 $productionTagsJson = '["' + ($PRODUCTION_TAGS -replace ',','","') + '"]'
+
+# Escape scripts for JSON (escape backslashes first, then quotes, then add newlines)
+$developmentScriptEscaped = $DEVELOPMENT_SCRIPT -replace '\\','\\' -replace '"','\"' -replace "`r`n","\n" -replace "`n","\n"
+$stagingScriptEscaped = $STAGING_SCRIPT -replace '\\','\\' -replace '"','\"' -replace "`r`n","\n" -replace "`n","\n"
+$productionScriptEscaped = $PRODUCTION_SCRIPT -replace '\\','\\' -replace '"','\"' -replace "`r`n","\n" -replace "`n","\n"
 
 # Replace placeholders
 $jsonDefinition = $jsonTemplate `
@@ -155,12 +189,19 @@ $jsonDefinition = $jsonTemplate `
     -replace '<PIPELINE_PROJECT_NAME>', $PIPELINE_PROJECT_NAME `
     -replace '<REPO_ID>', $REPO_ID `
     -replace '<REPO_NAME>', $REPO_NAME `
+    -replace '<DEFAULT_BRANCH>', $DEFAULT_BRANCH `
+    -replace '<DEVELOPMENT_BRANCHES_JSON>', $developmentBranchesJson `
+    -replace '<STAGING_BRANCHES_JSON>', $stagingBranchesJson `
+    -replace '<PRODUCTION_BRANCHES_JSON>', $productionBranchesJson `
     -replace '<DEVELOPMENT_DEPLOYMENT_GROUP_ID>', $DEVELOPMENT_DEPLOYMENT_GROUP_ID `
     -replace '<DEVELOPMENT_TAGS>', $developmentTagsJson `
+    -replace '<DEVELOPMENT_SCRIPT>', $developmentScriptEscaped `
     -replace '<STAGING_DEPLOYMENT_GROUP_ID>', $STAGING_DEPLOYMENT_GROUP_ID `
     -replace '<STAGING_TAGS>', $stagingTagsJson `
+    -replace '<STAGING_SCRIPT>', $stagingScriptEscaped `
     -replace '<PRODUCTION_DEPLOYMENT_GROUP_ID>', $PRODUCTION_DEPLOYMENT_GROUP_ID `
-    -replace '<PRODUCTION_TAGS>', $productionTagsJson
+    -replace '<PRODUCTION_TAGS>', $productionTagsJson `
+    -replace '<PRODUCTION_SCRIPT>', $productionScriptEscaped
 
 # Save processed JSON
 $jsonDefinition | Out-File -FilePath "release-definition.processed.json" -Encoding utf8
@@ -194,12 +235,15 @@ try {
     Write-Host "https://dev.azure.com/$ORGANIZATION_NAME/$PIPELINE_PROJECT_NAME/_release?definitionId=$RELEASE_ID" -ForegroundColor Blue
     Write-Host ""
     Write-Host "Next steps:" -ForegroundColor Yellow
-    Write-Host "1. Configure deployment group IDs if not done" -ForegroundColor Yellow
-    Write-Host "2. Tag servers in deployment groups with appropriate tags:" -ForegroundColor Yellow
+    Write-Host "1. Tag servers in deployment groups with appropriate tags:" -ForegroundColor Yellow
     Write-Host "   - Development: $DEVELOPMENT_TAGS" -ForegroundColor Yellow
     Write-Host "   - Staging: $STAGING_TAGS" -ForegroundColor Yellow
     Write-Host "   - Production: $PRODUCTION_TAGS" -ForegroundColor Yellow
-    Write-Host "3. Test the pipeline by pushing to dev1 or dev2 branches" -ForegroundColor Yellow
+    Write-Host "2. Test the pipeline by pushing to configured branches:" -ForegroundColor Yellow
+    Write-Host "   - Development: $DEVELOPMENT_BRANCHES" -ForegroundColor Yellow
+    Write-Host "   - Staging: $STAGING_BRANCHES" -ForegroundColor Yellow
+    Write-Host "   - Production: $PRODUCTION_BRANCHES" -ForegroundColor Yellow
+    Write-Host "3. Customize deployment scripts in config file as needed" -ForegroundColor Yellow
     Write-Host ""
 
 } catch {

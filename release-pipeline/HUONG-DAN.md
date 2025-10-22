@@ -161,6 +161,63 @@ STAGING_TAGS="web-server,staging"    # Tags để filter server
 # Production Environment
 PRODUCTION_DEPLOYMENT_GROUP_ID="3"   # Thay bằng ID thực tế
 PRODUCTION_TAGS="web-server,production"  # Tags để filter server
+
+# ==========================================
+# PHẦN 4: Cấu Hình Branch Triggers
+# ==========================================
+
+# Branch mặc định cho manual releases
+DEFAULT_BRANCH="main"
+
+# Development Stage - kích hoạt bởi các branches sau
+DEVELOPMENT_BRANCHES="dev1,dev2"
+
+# Staging Stage - kích hoạt bởi branch
+STAGING_BRANCHES="stage"
+
+# Production Stage - kích hoạt bởi branch
+PRODUCTION_BRANCHES="prod"
+
+# ==========================================
+# PHẦN 5: Deployment Scripts
+# ==========================================
+
+# Development Stage Script
+DEVELOPMENT_SCRIPT='#!/bin/bash
+echo "=========================================="
+echo "Starting Deployment to Development"
+echo "=========================================="
+echo "Server: $(hostname)"
+echo "User: $(whoami)"
+echo "Working directory: $(pwd)"
+echo "Artifact location: $(System.DefaultWorkingDirectory)"
+echo ""
+
+# Thêm lệnh deployment của bạn ở đây
+# Ví dụ:
+# sudo systemctl stop myapp-dev
+# sudo cp -r $(System.DefaultWorkingDirectory)/_MyApp/drop/* /var/www/dev/
+# sudo chown -R www-data:www-data /var/www/dev/
+# sudo systemctl start myapp-dev
+
+echo "Deployment to Development completed successfully!"
+echo "=========================================="'
+
+# Staging Stage Script
+STAGING_SCRIPT='#!/bin/bash
+echo "=========================================="
+echo "Starting Deployment to Staging"
+echo "=========================================="
+# ... Lệnh deployment cho Staging ...
+echo "=========================================="'
+
+# Production Stage Script
+PRODUCTION_SCRIPT='#!/bin/bash
+echo "=========================================="
+echo "Starting Deployment to Production"
+echo "=========================================="
+# ... Lệnh deployment cho Production ...
+echo "=========================================="'
 ```
 
 #### Ví Dụ Cấu Hình Thực Tế:
@@ -181,12 +238,32 @@ STAGING_TAGS="web-server,staging,frontend"
 
 PRODUCTION_DEPLOYMENT_GROUP_ID="18"
 PRODUCTION_TAGS="web-server,production,frontend"
+
+# Branch triggers
+DEVELOPMENT_BRANCHES="dev1,dev2,develop"
+STAGING_BRANCHES="stage,staging"
+PRODUCTION_BRANCHES="prod,main"
+
+# Deployment scripts - sử dụng scripts mặc định hoặc tùy chỉnh
 ```
 
 **LƯU Ý về Tags:**
 - Các tags cách nhau bởi dấu phẩy (không có khoảng trắng)
 - Tags phải khớp với tags đã gán cho servers trong deployment group
 - Pipeline chỉ chạy trên servers có **TẤT CẢ** các tags được chỉ định
+
+**LƯU Ý về Branches:**
+- Các branches cách nhau bởi dấu phẩy (không có khoảng trắng)
+- Khi code được push/merge vào một trong các branches này, pipeline sẽ tự động trigger stage tương ứng
+- Ví dụ: Push vào `dev1` hoặc `dev2` → Deploy tự động vào Development stage
+- Bạn có thể thêm nhiều branches cho mỗi stage: `"dev1,dev2,dev3,develop"`
+
+**LƯU Ý về Deployment Scripts:**
+- Scripts được viết bằng Bash shell script
+- Sử dụng single quotes `'...'` để bọc multiline scripts
+- Có thể sử dụng các biến Azure DevOps như `$(System.DefaultWorkingDirectory)`, `$(Build.SourceBranch)`, etc.
+- Scripts mặc định chỉ echo thông tin - bạn cần thêm lệnh deployment thực tế
+- Ví dụ lệnh deployment: stop service, copy files, restart service, run migrations, etc.
 
 ### BƯỚC 4: Lưu File Cấu Hình
 
@@ -264,10 +341,10 @@ Pipeline URL: https://dev.azure.com/{org}/{project}/_release?definitionId=42
 
    **Continuous Deployment Trigger:**
    - ✅ Enabled
-   - ✅ Build branch filters:
-     - `dev1`, `dev2` → Development stage
-     - `stage` → Staging stage
-     - `prod` → Production stage
+   - ✅ Build branch filters (theo cấu hình của bạn):
+     - Branches trong `DEVELOPMENT_BRANCHES` → Development stage
+     - Branches trong `STAGING_BRANCHES` → Staging stage
+     - Branches trong `PRODUCTION_BRANCHES` → Production stage
 
    **Stages:**
    - ✅ Development → Staging → Production
@@ -284,10 +361,12 @@ Pipeline URL: https://dev.azure.com/{org}/{project}/_release?definitionId=42
 5. Theo dõi quá trình deployment
 
 #### Test tự động (auto-trigger):
-1. Commit code vào branch `dev1` hoặc `dev2`
+1. Commit code vào một trong các branches trong `DEVELOPMENT_BRANCHES` (mặc định: `dev1` hoặc `dev2`)
 2. Pipeline tự động trigger stage Development
-3. Commit vào branch `stage` → trigger Staging
-4. Commit vào branch `prod` → trigger Production
+3. Commit vào branch trong `STAGING_BRANCHES` (mặc định: `stage`) → trigger Staging
+4. Commit vào branch trong `PRODUCTION_BRANCHES` (mặc định: `prod`) → trigger Production
+
+**Lưu ý:** Branches trigger được cấu hình trong file config của bạn!
 
 ---
 
@@ -357,10 +436,11 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 1. Vào pipeline → Edit
 2. Click vào lightning icon trên artifact
 3. Kiểm tra **Continuous deployment trigger** = Enabled
-4. Kiểm tra **Build branch filters** có đúng các branch:
-   - Development: `dev1`, `dev2`
-   - Staging: `stage`
-   - Production: `prod`
+4. Kiểm tra **Build branch filters** có đúng các branch theo config của bạn:
+   - Development: branches trong `DEVELOPMENT_BRANCHES`
+   - Staging: branches trong `STAGING_BRANCHES`
+   - Production: branches trong `PRODUCTION_BRANCHES`
+5. Đảm bảo bạn đang push code vào đúng branch name (có phân biệt hoa/thường)
 
 ---
 
@@ -368,61 +448,153 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 
 Mặc định, pipeline chạy scripts đơn giản để echo thông báo. Để thay đổi logic deployment:
 
-### Bước 1: Mở file `release-definition.json`
+### Phương Án 1: Sửa Trong File Config (Khuyến Nghị)
 
-### Bước 2: Tìm phần `workflowTasks` trong mỗi stage
+Đây là cách dễ nhất và được khuyến nghị.
 
-Ví dụ cho Development stage:
+#### Bước 1: Mở file config
 
-```json
-{
-  "workflowTasks": [
-    {
-      "taskId": "d9bafed4-0b18-4f58-968d-86655b4d2ce9",
-      "version": "2.*",
-      "name": "Deploy to Development",
-      "inputs": {
-        "targetType": "inline",
-        "script": "#!/bin/bash\necho \"Deploying to Development...\"\necho \"Server: $(hostname)\"\necho \"Working directory: $(pwd)\"\necho \"Artifact location: $(System.DefaultWorkingDirectory)\"\n\n# Thêm lệnh deployment của bạn ở đây\n# Ví dụ:\n# sudo systemctl stop myapp\n# sudo cp -r $(System.DefaultWorkingDirectory)/_MyApp/* /var/www/html/\n# sudo systemctl start myapp"
-      }
-    }
-  ]
-}
+**Linux/Mac:**
+```bash
+nano config.local.sh
+# hoặc
+code config.local.sh
 ```
 
-### Bước 3: Thay đổi script theo nhu cầu
+**Windows:**
+```powershell
+notepad config.local.ps1
+# hoặc
+code config.local.ps1
+```
 
-Ví dụ deployment một ứng dụng Node.js:
+#### Bước 2: Tìm và sửa deployment scripts
+
+Tìm các biến `DEVELOPMENT_SCRIPT`, `STAGING_SCRIPT`, `PRODUCTION_SCRIPT` và thay đổi nội dung:
+
+**Ví dụ cho Development - Deployment ứng dụng Node.js:**
 
 ```bash
-#!/bin/bash
-echo "=== Starting Deployment to Development ==="
+DEVELOPMENT_SCRIPT='#!/bin/bash
+echo "=========================================="
+echo "Starting Deployment to Development"
+echo "=========================================="
+echo "Server: $(hostname)"
+echo "Date: $(date)"
+echo ""
 
 # Dừng ứng dụng
 echo "Stopping application..."
-pm2 stop myapp
+pm2 stop myapp-dev
 
-# Copy files mới
+# Backup version hiện tại
+echo "Creating backup..."
+sudo cp -r /var/www/dev /var/www/dev.backup.$(date +%Y%m%d_%H%M%S)
+
+# Copy files mới từ artifact
 echo "Copying new files..."
-cp -r $(System.DefaultWorkingDirectory)/_MyWebApp/drop/* /var/www/myapp/
+sudo cp -r $(System.DefaultWorkingDirectory)/_MyWebApp/drop/* /var/www/dev/
+
+# Set permissions
+echo "Setting permissions..."
+sudo chown -R www-data:www-data /var/www/dev/
 
 # Cài đặt dependencies
 echo "Installing dependencies..."
-cd /var/www/myapp
+cd /var/www/dev
 npm install --production
 
-# Chạy migrations (nếu có)
+# Chạy migrations
 echo "Running database migrations..."
 npm run migrate
 
 # Khởi động lại ứng dụng
 echo "Starting application..."
-pm2 restart myapp
+pm2 start /var/www/dev/app.js --name myapp-dev
 
-echo "=== Deployment completed successfully ==="
+echo "Deployment to Development completed successfully!"
+echo "=========================================="'
 ```
 
-### Bước 4: Chạy lại script import để cập nhật pipeline
+**Ví dụ cho Production - Deployment ứng dụng Python/Django:**
+
+```bash
+PRODUCTION_SCRIPT='#!/bin/bash
+set -e  # Exit on error
+
+echo "=========================================="
+echo "Starting Deployment to Production"
+echo "=========================================="
+echo "Server: $(hostname)"
+echo "Date: $(date)"
+echo ""
+
+# Kích hoạt virtual environment
+source /var/www/production/venv/bin/activate
+
+# Dừng service
+echo "Stopping service..."
+sudo systemctl stop myapp
+
+# Backup
+echo "Creating backup..."
+sudo tar -czf /var/backups/myapp-$(date +%Y%m%d_%H%M%S).tar.gz /var/www/production/
+
+# Copy files mới
+echo "Deploying new version..."
+sudo cp -r $(System.DefaultWorkingDirectory)/_MyApp/drop/* /var/www/production/
+
+# Install dependencies
+echo "Installing dependencies..."
+cd /var/www/production
+pip install -r requirements.txt
+
+# Collect static files
+echo "Collecting static files..."
+python manage.py collectstatic --noinput
+
+# Run migrations
+echo "Running migrations..."
+python manage.py migrate
+
+# Restart service
+echo "Starting service..."
+sudo systemctl start myapp
+
+# Health check
+echo "Running health check..."
+sleep 5
+curl -f http://localhost:8000/health || exit 1
+
+echo "Production deployment completed successfully!"
+echo "=========================================="'
+```
+
+#### Bước 3: Lưu file và chạy lại import script
+
+```bash
+# Linux/Mac
+./import-release-pipeline.sh
+
+# Windows PowerShell
+.\import-release-pipeline.ps1
+```
+
+Script sẽ tạo lại pipeline với deployment scripts mới.
+
+### Phương Án 2: Sửa Trực Tiếp Trong Azure DevOps
+
+Sau khi import pipeline, bạn có thể sửa scripts trực tiếp trong Azure DevOps:
+
+1. Vào Azure DevOps → Pipelines → Releases
+2. Chọn pipeline **Multi-Stage Auto Release**
+3. Click **Edit**
+4. Click vào stage muốn sửa (ví dụ: Development)
+5. Click vào task **Deploy to Development**
+6. Sửa nội dung trong field **Script**
+7. Click **Save**
+
+**Lưu ý:** Nếu bạn chạy lại import script, những thay đổi này sẽ bị ghi đè.
 
 ---
 

@@ -9,8 +9,8 @@
       "alias": "_<REPO_NAME>",
       "definitionReference": {
         "branches": {
-          "id": "dev",
-          "name": "dev"
+          "id": "<DEFAULT_BRANCH>",
+          "name": "<DEFAULT_BRANCH>"
         },
         "checkoutSubmodules": {
           "id": "",
@@ -47,44 +47,17 @@
   "triggers": [
     {
       "artifactAlias": "_<REPO_NAME>",
-      "triggerConditions": [
-        {
-          "sourceBranch": "dev1",
-          "tags": [],
-          "useBuildDefinitionBranch": false,
-          "createReleaseOnBuildTagging": false
-        },
-        {
-          "sourceBranch": "dev2",
-          "tags": [],
-          "useBuildDefinitionBranch": false,
-          "createReleaseOnBuildTagging": false
-        }
-      ],
+      "triggerConditions": <DEVELOPMENT_BRANCHES_JSON>,
       "triggerType": 2
     },
     {
       "artifactAlias": "_<REPO_NAME>",
-      "triggerConditions": [
-        {
-          "sourceBranch": "stage",
-          "tags": [],
-          "useBuildDefinitionBranch": false,
-          "createReleaseOnBuildTagging": false
-        }
-      ],
+      "triggerConditions": <STAGING_BRANCHES_JSON>,
       "triggerType": 2
     },
     {
       "artifactAlias": "_<REPO_NAME>",
-      "triggerConditions": [
-        {
-          "sourceBranch": "prod",
-          "tags": [],
-          "useBuildDefinitionBranch": false,
-          "createReleaseOnBuildTagging": false
-        }
-      ],
+      "triggerConditions": <PRODUCTION_BRANCHES_JSON>,
       "triggerType": 2
     }
   ],
@@ -179,7 +152,7 @@
                 "targetType": "inline",
                 "filePath": "",
                 "arguments": "",
-                "script": "#!/bin/bash\nset -e\n\necho \"=====================================\"\necho \"Deploying to Development Environment\"\necho \"=====================================\"\necho \"Hostname: $(hostname)\"\necho \"User: $(whoami)\"\necho \"Date: $(date)\"\necho \"Working Directory: $(pwd)\"\necho \"\"\necho \"Running deployment in Development on $(hostname)\"\necho \"\"\necho \"Deployment to Development completed successfully!\"\necho \"=====================================\"",
+                "script": "<DEVELOPMENT_SCRIPT>",
                 "errorActionPreference": "stop",
                 "failOnStderr": "false",
                 "ignoreLASTEXITCODE": "false",
@@ -324,7 +297,7 @@
                 "targetType": "inline",
                 "filePath": "",
                 "arguments": "",
-                "script": "#!/bin/bash\nset -e\n\necho \"=====================================\"\necho \"Deploying to Staging Environment\"\necho \"=====================================\"\necho \"Hostname: $(hostname)\"\necho \"User: $(whoami)\"\necho \"Date: $(date)\"\necho \"Working Directory: $(pwd)\"\necho \"\"\necho \"Running deployment in Staging on $(hostname)\"\necho \"\"\necho \"Deployment to Staging completed successfully!\"\necho \"=====================================\"",
+                "script": "<STAGING_SCRIPT>",
                 "errorActionPreference": "stop",
                 "failOnStderr": "false",
                 "ignoreLASTEXITCODE": "false",
@@ -469,7 +442,7 @@
                 "targetType": "inline",
                 "filePath": "",
                 "arguments": "",
-                "script": "#!/bin/bash\nset -e\n\necho \"=====================================\"\necho \"Deploying to Production Environment\"\necho \"=====================================\"\necho \"Hostname: $(hostname)\"\necho \"User: $(whoami)\"\necho \"Date: $(date)\"\necho \"Working Directory: $(pwd)\"\necho \"\"\necho \"Running deployment in Production on $(hostname)\"\necho \"\"\necho \"Deployment to Production completed successfully!\"\necho \"=====================================\"",
+                "script": "<PRODUCTION_SCRIPT>",
                 "errorActionPreference": "stop",
                 "failOnStderr": "false",
                 "ignoreLASTEXITCODE": "false",

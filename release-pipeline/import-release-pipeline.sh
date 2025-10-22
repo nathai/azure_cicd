@@ -129,6 +129,36 @@ fi
 echo ""
 echo -e "${BLUE}Step 5: Preparing release definition...${NC}"
 
+# Function to convert comma-separated branches to JSON trigger conditions
+branches_to_json() {
+    local branches="$1"
+    local result="["
+    local first=true
+
+    IFS=',' read -ra BRANCH_ARRAY <<< "$branches"
+    for branch in "${BRANCH_ARRAY[@]}"; do
+        if [ "$first" = true ]; then
+            first=false
+        else
+            result="$result,"
+        fi
+        result="$result{\"sourceBranch\":\"$branch\",\"tags\":[],\"useBuildDefinitionBranch\":false,\"createReleaseOnBuildTagging\":false}"
+    done
+
+    result="$result]"
+    echo "$result"
+}
+
+# Convert branches to JSON trigger conditions
+DEVELOPMENT_BRANCHES_JSON=$(branches_to_json "$DEVELOPMENT_BRANCHES")
+STAGING_BRANCHES_JSON=$(branches_to_json "$STAGING_BRANCHES")
+PRODUCTION_BRANCHES_JSON=$(branches_to_json "$PRODUCTION_BRANCHES")
+
+echo -e "${GREEN}✓ Branch triggers configured:${NC}"
+echo -e "${GREEN}  - Development: ${DEVELOPMENT_BRANCHES}${NC}"
+echo -e "${GREEN}  - Staging: ${STAGING_BRANCHES}${NC}"
+echo -e "${GREEN}  - Production: ${PRODUCTION_BRANCHES}${NC}"
+
 # Read JSON template
 JSON_TEMPLATE=$(cat release-definition.json)
 
@@ -136,6 +166,11 @@ JSON_TEMPLATE=$(cat release-definition.json)
 DEVELOPMENT_TAGS_JSON=$(echo "$DEVELOPMENT_TAGS" | sed 's/,/","/g' | sed 's/^/["/' | sed 's/$/"]/')
 STAGING_TAGS_JSON=$(echo "$STAGING_TAGS" | sed 's/,/","/g' | sed 's/^/["/' | sed 's/$/"]/')
 PRODUCTION_TAGS_JSON=$(echo "$PRODUCTION_TAGS" | sed 's/,/","/g' | sed 's/^/["/' | sed 's/$/"]/')
+
+# Escape scripts for JSON (escape newlines, quotes, backslashes)
+DEVELOPMENT_SCRIPT_ESCAPED=$(echo "$DEVELOPMENT_SCRIPT" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | awk '{printf "%s\\n", $0}' | sed 's/\\n$//')
+STAGING_SCRIPT_ESCAPED=$(echo "$STAGING_SCRIPT" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | awk '{printf "%s\\n", $0}' | sed 's/\\n$//')
+PRODUCTION_SCRIPT_ESCAPED=$(echo "$PRODUCTION_SCRIPT" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | awk '{printf "%s\\n", $0}' | sed 's/\\n$//')
 
 # Replace placeholders
 JSON_DEFINITION=$(echo "$JSON_TEMPLATE" | \
@@ -145,12 +180,19 @@ JSON_DEFINITION=$(echo "$JSON_TEMPLATE" | \
   sed "s/<PIPELINE_PROJECT_NAME>/$PIPELINE_PROJECT_NAME/g" | \
   sed "s/<REPO_ID>/$REPO_ID/g" | \
   sed "s/<REPO_NAME>/$REPO_NAME/g" | \
+  sed "s/<DEFAULT_BRANCH>/$DEFAULT_BRANCH/g" | \
+  sed "s|<DEVELOPMENT_BRANCHES_JSON>|$DEVELOPMENT_BRANCHES_JSON|g" | \
+  sed "s|<STAGING_BRANCHES_JSON>|$STAGING_BRANCHES_JSON|g" | \
+  sed "s|<PRODUCTION_BRANCHES_JSON>|$PRODUCTION_BRANCHES_JSON|g" | \
   sed "s/<DEVELOPMENT_DEPLOYMENT_GROUP_ID>/$DEVELOPMENT_DEPLOYMENT_GROUP_ID/g" | \
   sed "s|<DEVELOPMENT_TAGS>|$DEVELOPMENT_TAGS_JSON|g" | \
+  sed "s|<DEVELOPMENT_SCRIPT>|$DEVELOPMENT_SCRIPT_ESCAPED|g" | \
   sed "s/<STAGING_DEPLOYMENT_GROUP_ID>/$STAGING_DEPLOYMENT_GROUP_ID/g" | \
   sed "s|<STAGING_TAGS>|$STAGING_TAGS_JSON|g" | \
+  sed "s|<STAGING_SCRIPT>|$STAGING_SCRIPT_ESCAPED|g" | \
   sed "s/<PRODUCTION_DEPLOYMENT_GROUP_ID>/$PRODUCTION_DEPLOYMENT_GROUP_ID/g" | \
-  sed "s|<PRODUCTION_TAGS>|$PRODUCTION_TAGS_JSON|g")
+  sed "s|<PRODUCTION_TAGS>|$PRODUCTION_TAGS_JSON|g" | \
+  sed "s|<PRODUCTION_SCRIPT>|$PRODUCTION_SCRIPT_ESCAPED|g")
 
 # Save processed JSON
 echo "$JSON_DEFINITION" > release-definition.processed.json
@@ -190,10 +232,13 @@ echo -e "${BLUE}View your pipeline at:${NC}"
 echo -e "${BLUE}https://dev.azure.com/${ORGANIZATION_NAME}/${PIPELINE_PROJECT_NAME}/_release?definitionId=${RELEASE_ID}${NC}"
 echo ""
 echo -e "${YELLOW}Next steps:${NC}"
-echo -e "${YELLOW}1. Configure deployment group IDs if not done${NC}"
-echo -e "${YELLOW}2. Tag servers in deployment groups with appropriate tags:${NC}"
+echo -e "${YELLOW}1. Tag servers in deployment groups with appropriate tags:${NC}"
 echo -e "${YELLOW}   - Development: ${DEVELOPMENT_TAGS}${NC}"
 echo -e "${YELLOW}   - Staging: ${STAGING_TAGS}${NC}"
 echo -e "${YELLOW}   - Production: ${PRODUCTION_TAGS}${NC}"
-echo -e "${YELLOW}3. Test the pipeline by pushing to dev1 or dev2 branches${NC}"
+echo -e "${YELLOW}2. Test the pipeline by pushing to configured branches:${NC}"
+echo -e "${YELLOW}   - Development: ${DEVELOPMENT_BRANCHES}${NC}"
+echo -e "${YELLOW}   - Staging: ${STAGING_BRANCHES}${NC}"
+echo -e "${YELLOW}   - Production: ${PRODUCTION_BRANCHES}${NC}"
+echo -e "${YELLOW}3. Customize deployment scripts in config file as needed${NC}"
 echo ""
