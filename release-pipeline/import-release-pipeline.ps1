@@ -292,6 +292,7 @@ $productionScriptEscaped = $PRODUCTION_SCRIPT -replace '\\','\\' -replace '"','\
 
 # Replace placeholders
 $jsonDefinition = $jsonTemplate `
+    -replace '<PIPELINE_NAME>', $PIPELINE_NAME `
     -replace '<REPO_PROJECT_ID>', $REPO_PROJECT_ID `
     -replace '<REPO_PROJECT_NAME>', $REPO_PROJECT_NAME `
     -replace '<PIPELINE_PROJECT_ID>', $PIPELINE_PROJECT_ID `

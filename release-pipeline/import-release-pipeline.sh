@@ -199,6 +199,7 @@ PRODUCTION_SCRIPT_ESCAPED=$(echo "$PRODUCTION_SCRIPT" | sed 's/\\/\\\\/g' | sed 
 
 # Replace placeholders
 JSON_DEFINITION=$(echo "$JSON_TEMPLATE" | \
+  sed "s/<PIPELINE_NAME>/$PIPELINE_NAME/g" | \
   sed "s/<REPO_PROJECT_ID>/$REPO_PROJECT_ID/g" | \
   sed "s/<REPO_PROJECT_NAME>/$REPO_PROJECT_NAME/g" | \
   sed "s/<PIPELINE_PROJECT_ID>/$PIPELINE_PROJECT_ID/g" | \

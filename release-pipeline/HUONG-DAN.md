@@ -112,18 +112,23 @@ Copy-Item pipelines.env.example pipelines.env
 
 #### Tạo nhiều pipelines (Optional):
 
-Bạn có thể tạo nhiều file `.env` cho các pipelines khác nhau:
+Bạn có thể tạo nhiều file `.env` cho các pipelines khác nhau. Mỗi file có thể có tên pipeline riêng:
 
 ```bash
 # Pipeline cho web application
 cp pipelines.env.example web-app.env
+# Trong file: PIPELINE_NAME="WebApp Release Pipeline"
 
 # Pipeline cho API service
 cp pipelines.env.example api-service.env
+# Trong file: PIPELINE_NAME="API Service Release"
 
 # Pipeline cho mobile backend
 cp pipelines.env.example mobile-backend.env
+# Trong file: PIPELINE_NAME="Mobile Backend Deployment"
 ```
+
+**Lợi ích:** Mỗi pipeline sẽ có tên riêng trong Azure DevOps, dễ phân biệt và quản lý.
 
 ### BƯỚC 2: Chỉnh Sửa File Cấu Hình
 
@@ -157,6 +162,9 @@ PAT_TOKEN="token-cua-ban-o-day"
 # ==========================================
 # PHẦN 2: Thông Tin Repository và Pipeline
 # ==========================================
+
+# Tên pipeline sẽ hiển thị trong Azure DevOps
+PIPELINE_NAME="Multi-Stage Auto Release"
 
 # Tên project chứa repository (source code)
 REPO_PROJECT_NAME="ProjectChuaSourceCode"
@@ -252,6 +260,10 @@ echo "=========================================="'
 ```bash
 ORGANIZATION_NAME="contoso"
 PAT_TOKEN="abcd1234efgh5678ijkl9012mnop3456qrst7890uvwx"
+
+# Tên pipeline
+PIPELINE_NAME="WebApp Production Release"
+
 REPO_PROJECT_NAME="MyWebApp"
 REPO_NAME="webapp-repo"
 DEFAULT_BRANCH="main"

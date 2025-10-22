@@ -1,5 +1,5 @@
 {
-  "name": "Multi-Stage Auto Release",
+  "name": "<PIPELINE_NAME>",
   "source": 2,
   "comment": "Auto-generated release pipeline with multi-stage deployment",
   "artifacts": [
