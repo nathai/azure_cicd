@@ -1,3 +1,4 @@
+# Azure DevOps Connection
 variable "org_service_url" {
   description = "Azure DevOps Organization URL (e.g., https://dev.azure.com/your-org)"
   type        = string
@@ -9,95 +10,78 @@ variable "personal_access_token" {
   sensitive   = true
 }
 
+# Existing Project and Repository
 variable "project_name" {
-  description = "Name of the Azure DevOps project"
+  description = "Name of the EXISTING Azure DevOps project"
   type        = string
-}
-
-variable "project_description" {
-  description = "Description of the Azure DevOps project"
-  type        = string
-  default     = "Project managed by Terraform"
 }
 
 variable "repository_name" {
-  description = "Name of the Git repository"
+  description = "Name of the EXISTING Git repository in the project"
   type        = string
-}
-
-variable "release_pipeline_name" {
-  description = "Name of the release pipeline"
-  type        = string
-  default     = "Release Pipeline"
-}
-
-variable "environments" {
-  description = "List of deployment environments"
-  type = list(object({
-    name     = string
-    order    = number
-    approvers = list(string)
-  }))
-  default = [
-    {
-      name     = "Development"
-      order    = 1
-      approvers = []
-    },
-    {
-      name     = "Staging"
-      order    = 2
-      approvers = []
-    },
-    {
-      name     = "Production"
-      order    = 3
-      approvers = []
-    }
-  ]
-}
-
-variable "service_connection_name" {
-  description = "Name of the Azure service connection"
-  type        = string
-  default     = ""
-}
-
-variable "tags" {
-  description = "Tags to apply to resources"
-  type        = map(string)
-  default     = {}
-}
-
-# Additional variables for existing resources scenario
-variable "build_pipeline_name" {
-  description = "Name of the build (CI) pipeline"
-  type        = string
-  default     = "CI Pipeline"
 }
 
 variable "default_branch" {
-  description = "Default branch for pipelines"
+  description = "Default branch for pipelines (e.g., refs/heads/main or refs/heads/master)"
   type        = string
   default     = "refs/heads/main"
 }
 
-variable "build_pipeline_path" {
+# Build Pipeline Configuration
+variable "build_pipeline_name" {
+  description = "Name of the build (CI) pipeline"
+  type        = string
+  default     = "CI-Pipeline"
+}
+
+variable "build_pipeline_yaml_path" {
   description = "Path to the build pipeline YAML file in the repository"
   type        = string
   default     = "azure-pipelines.yml"
 }
 
-variable "release_pipeline_path" {
+variable "build_use_variable_groups" {
+  description = "Whether to link variable groups to build pipeline"
+  type        = bool
+  default     = true
+}
+
+# Release Pipeline Configuration
+variable "release_pipeline_name" {
+  description = "Name of the release (CD) pipeline"
+  type        = string
+  default     = "CD-Pipeline"
+}
+
+variable "release_pipeline_yaml_path" {
   description = "Path to the release pipeline YAML file in the repository"
   type        = string
   default     = "azure-release-pipeline.yml"
 }
 
+variable "release_use_variable_groups" {
+  description = "Whether to link variable groups to release pipeline"
+  type        = bool
+  default     = true
+}
+
+# Variable Group Configuration
+variable "create_variable_group" {
+  description = "Whether to create a variable group"
+  type        = bool
+  default     = true
+}
+
 variable "variable_group_name" {
   description = "Name of the variable group"
   type        = string
-  default     = "Release-Variables"
+  default     = "Pipeline-Variables"
+}
+
+variable "variable_group_description" {
+  description = "Description of the variable group"
+  type        = string
+  default     = "Shared variables for CI/CD pipelines"
 }
 
 variable "pipeline_variables" {
@@ -114,47 +98,21 @@ variable "pipeline_variables" {
   }
 }
 
-# Azure Service Connection variables (optional)
-variable "create_service_connection" {
-  description = "Whether to create Azure service connection"
+# Environment Configuration
+variable "create_environments" {
+  description = "Whether to create deployment environments"
   type        = bool
-  default     = false
+  default     = true
 }
 
-variable "azure_service_principal_id" {
-  description = "Azure Service Principal ID"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
-variable "azure_service_principal_key" {
-  description = "Azure Service Principal Key"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
-variable "azure_tenant_id" {
-  description = "Azure Tenant ID"
-  type        = string
-  default     = ""
-}
-
-variable "azure_subscription_id" {
-  description = "Azure Subscription ID"
-  type        = string
-  default     = ""
-}
-
-variable "azure_subscription_name" {
-  description = "Azure Subscription Name"
-  type        = string
-  default     = ""
-}
-
-variable "agent_pool_name" {
-  description = "Name of the agent pool to use"
-  type        = string
-  default     = "Azure Pipelines"
+variable "environments" {
+  description = "List of deployment environments to create"
+  type = list(object({
+    name = string
+  }))
+  default = [
+    { name = "Development" },
+    { name = "Staging" },
+    { name = "Production" }
+  ]
 }

@@ -1,40 +1,56 @@
-# Azure DevOps Organization Configuration
+# Azure DevOps Configuration
 org_service_url       = "https://dev.azure.com/your-organization"
 personal_access_token = "your-pat-token-here"
 
-# Project Configuration
-project_name        = "MyProject"
-project_description = "My Azure DevOps project managed by Terraform"
-repository_name     = "my-application"
+# IMPORTANT: These must be existing resources in Azure DevOps
+project_name    = "YourExistingProject"
+repository_name = "your-existing-repo"
 
-# Release Pipeline Configuration
-release_pipeline_name = "MyApp Release Pipeline"
+# Branch Configuration
+default_branch = "refs/heads/main"  # or "refs/heads/master"
 
-# Deployment Environments
-environments = [
-  {
-    name      = "Development"
-    order     = 1
-    approvers = []
-  },
-  {
-    name      = "Staging"
-    order     = 2
-    approvers = ["user1@example.com"]
-  },
-  {
-    name      = "Production"
-    order     = 3
-    approvers = ["user1@example.com", "user2@example.com"]
+# Build Pipeline (CI)
+build_pipeline_name      = "MyApp-CI"
+build_pipeline_yaml_path = "azure-pipelines.yml"
+build_use_variable_groups = true
+
+# Release Pipeline (CD)
+release_pipeline_name      = "MyApp-CD"
+release_pipeline_yaml_path = "azure-release-pipeline.yml"
+release_use_variable_groups = true
+
+# Variable Group
+create_variable_group       = true
+variable_group_name         = "MyApp-Variables"
+variable_group_description  = "Shared variables for MyApp pipelines"
+
+pipeline_variables = {
+  environment = {
+    value     = "production"
+    is_secret = false
   }
-]
-
-# Optional: Service Connection
-# service_connection_name = "Azure-Production"
-
-# Tags
-tags = {
-  Environment = "Production"
-  ManagedBy   = "Terraform"
-  Team        = "DevOps"
+  app_version = {
+    value     = "1.0.0"
+    is_secret = false
+  }
+  api_endpoint = {
+    value     = "https://api.example.com"
+    is_secret = false
+  }
+  api_key = {
+    value     = "your-secret-api-key"
+    is_secret = true
+  }
+  database_connection = {
+    value     = "your-connection-string"
+    is_secret = true
+  }
 }
+
+# Environments
+create_environments = true
+environments = [
+  { name = "Development" },
+  { name = "Staging" },
+  { name = "Production" }
+]

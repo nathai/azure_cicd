@@ -1,465 +1,592 @@
-# Azure DevOps Release Pipeline with Terraform
+# Azure DevOps Pipelines với Terraform
 
-This repository contains Terraform configuration to create and manage Azure DevOps release pipelines automatically.
+Quản lý Build và Release Pipelines trong Azure DevOps bằng Terraform.
 
-[Vietnamese version / Phiên bản tiếng Việt](#phiên-bản-tiếng-việt)
-
-## Two Usage Modes
-
-This repository supports **two different usage modes**:
-
-### 1. Full Setup Mode (Create Everything)
-Create a complete Azure DevOps setup from scratch including project, repository, and pipelines.
-
-**Use when:** Starting a new project
-**What gets created:** Project + Repository + Pipelines + Environments + Variable Groups
-
-📖 [See Quick Start below](#quick-start)
-
-### 2. Pipelines-Only Mode (Use Existing Project/Repo)
-Add pipelines to your existing Azure DevOps project and repository.
-
-**Use when:** You already have a project and repo created manually
-**What gets created:** Only Pipelines + Environments + Variable Groups
-
-📖 [See Existing Resources Guide](README-EXISTING-RESOURCES.md)
-
-## Features
-
-- **Project Management**: Automatically create Azure DevOps projects (Full mode)
-- **Repository Setup**: Set up Git repositories (Full mode)
-- **Build Pipelines**: Configure CI pipelines
-- **Release Pipelines**: Create multi-stage CD pipelines
-- **Environments**: Manage deployment environments (Dev, Staging, Production)
-- **Variable Groups**: Centralized variable management
-- **YAML Pipelines**: Modern YAML-based pipeline configuration
-- **Flexible**: Works with new or existing projects
-
-## Prerequisites
-
-1. **Azure DevOps Account**: You need an active Azure DevOps organization
-2. **Terraform**: Install Terraform >= 1.0
-3. **Personal Access Token (PAT)**: Create a PAT with the following scopes:
-   - Agent Pools (Read & Manage)
-   - Build (Read & Execute)
-   - Code (Full)
-   - Environment (Read & Manage)
-   - Project and Team (Read, Write, & Manage)
-   - Release (Read, Write, Execute & Manage)
-   - Service Connections (Read, Query, & Manage)
-   - Variable Groups (Read, Create, & Manage)
-
-## Quick Start
-
-### 1. Create Personal Access Token
-
-1. Go to Azure DevOps: `https://dev.azure.com/your-organization`
-2. Click on User Settings (top right) → Personal Access Tokens
-3. Click "New Token"
-4. Give it a name and select the required scopes (listed above)
-5. Copy the token (you won't see it again!)
-
-### 2. Configure Terraform
-
-```bash
-# Copy example configuration
-cp terraform.tfvars.example terraform.tfvars
-
-# Edit terraform.tfvars with your values
-nano terraform.tfvars
-```
-
-Update the following values:
-```hcl
-org_service_url       = "https://dev.azure.com/your-organization"
-personal_access_token = "your-pat-token-here"
-project_name          = "MyProject"
-repository_name       = "my-application"
-```
-
-### 3. Initialize and Apply
-
-```bash
-# Initialize Terraform
-terraform init
-
-# Review the plan
-terraform plan
-
-# Apply the configuration
-terraform apply
-```
-
-### 4. Access Your Pipeline
-
-After successful deployment, Terraform will output:
-- Project URL
-- Repository URL
-- Release Pipeline URL
-
-## Project Structure
-
-```
-.
-├── provider.tf                    # Provider configuration
-├── main.tf                        # Main resources
-├── variables.tf                   # Variable definitions
-├── outputs.tf                     # Output definitions
-├── terraform.tfvars.example       # Example configuration
-├── azure-pipelines.yml            # CI pipeline template
-├── azure-release-pipeline.yml     # CD pipeline template
-└── README.md                      # Documentation
-```
-
-## Resources Created
-
-1. **Azure DevOps Project**: A new project with enabled features
-2. **Git Repository**: Source code repository
-3. **Build Definition**: CI pipeline for building and testing
-4. **Release Pipeline**: Multi-stage CD pipeline
-5. **Environments**: Development, Staging, Production
-6. **Variable Group**: Shared variables for pipelines
-
-## Customization
-
-### Adding Environments
-
-Edit `terraform.tfvars`:
-
-```hcl
-environments = [
-  {
-    name      = "Development"
-    order     = 1
-    approvers = []
-  },
-  {
-    name      = "QA"
-    order     = 2
-    approvers = ["qa-lead@example.com"]
-  },
-  {
-    name      = "Staging"
-    order     = 3
-    approvers = ["dev-lead@example.com"]
-  },
-  {
-    name      = "Production"
-    order     = 4
-    approvers = ["cto@example.com", "ops-lead@example.com"]
-  }
-]
-```
-
-### Configuring Azure Service Connection
-
-Uncomment the service endpoint section in `main.tf` and add variables:
-
-```hcl
-# In variables.tf
-variable "azure_service_principal_id" {
-  description = "Azure Service Principal ID"
-  type        = string
-}
-
-variable "azure_service_principal_key" {
-  description = "Azure Service Principal Key"
-  type        = string
-  sensitive   = true
-}
-
-# ... other Azure variables
-```
-
-## Pipeline Workflow
-
-### CI Pipeline (azure-pipelines.yml)
-1. Triggered on push to main/develop branches
-2. Build application
-3. Run tests
-4. Publish artifacts
-
-### CD Pipeline (azure-release-pipeline.yml)
-1. Triggered on successful CI build
-2. Deploy to Development (automatic)
-3. Deploy to Staging (requires approval)
-4. Deploy to Production (requires approval)
-
-## Management Commands
-
-```bash
-# View current state
-terraform show
-
-# Update infrastructure
-terraform apply
-
-# Destroy all resources
-terraform destroy
-
-# Format Terraform files
-terraform fmt
-
-# Validate configuration
-terraform validate
-```
-
-## Best Practices
-
-1. **Never commit `terraform.tfvars`**: Contains sensitive data
-2. **Use remote state**: Store state in Azure Storage or Terraform Cloud
-3. **Enable branch policies**: Protect main branch
-4. **Set up approvals**: Require approvals for production deployments
-5. **Use variable groups**: Centralize configuration
-6. **Version control YAML**: Keep pipeline definitions in source control
-
-## Troubleshooting
-
-### Authentication Issues
-```bash
-# Verify PAT has correct permissions
-# Ensure PAT has not expired
-# Check org_service_url format
-```
-
-### Pipeline Not Triggering
-```bash
-# Ensure YAML files are committed to the repository
-# Check trigger configuration in YAML
-# Verify branch names match
-```
-
-## Security Notes
-
-- Store PAT securely (use environment variables or secret management)
-- Regularly rotate Personal Access Tokens
-- Use managed identities where possible
-- Limit PAT scope to minimum required permissions
-- Enable Azure DevOps audit logging
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
-
-## License
-
-MIT License - feel free to use and modify
+[English version / Phiên bản tiếng Anh](#azure-devops-pipelines-with-terraform)
 
 ---
 
-# Phiên bản tiếng Việt
+## ⚠️ Quan trọng
 
-## Azure DevOps Release Pipeline với Terraform
+Repository này **KHÔNG tạo** Azure DevOps Project hoặc Git Repository.
 
-Repository này chứa cấu hình Terraform để tạo và quản lý release pipelines trong Azure DevOps một cách tự động.
+Bạn cần có sẵn:
+- ✅ Azure DevOps Project đã được tạo
+- ✅ Git Repository đã được tạo trong project đó
+- ✅ Pipeline YAML files đã được commit vào repository
 
-## Hai chế độ sử dụng
+Repository này chỉ tạo:
+- ✅ Build Pipeline (CI)
+- ✅ Release Pipeline (CD)
+- ✅ Environments (Development, Staging, Production)
+- ✅ Variable Groups (biến dùng chung)
 
-Repository này hỗ trợ **hai chế độ sử dụng khác nhau**:
+---
 
-### 1. Chế độ Đầy đủ (Tạo mới toàn bộ)
-Tạo một setup Azure DevOps hoàn chỉnh từ đầu bao gồm project, repository và pipelines.
+## Cấu trúc Files
 
-**Sử dụng khi:** Bắt đầu project mới
-**Tạo ra:** Project + Repository + Pipelines + Environments + Variable Groups
+```
+.
+├── provider.tf              # Cấu hình Azure DevOps provider
+├── data-sources.tf          # Reference đến project và repo có sẵn
+├── build-pipeline.tf        # Build Pipeline (CI)
+├── release-pipeline.tf      # Release Pipeline (CD)
+├── environments.tf          # Deployment environments
+├── variable-groups.tf       # Variable groups
+├── variables.tf             # Khai báo biến
+├── outputs.tf               # Outputs
+├── terraform.tfvars.example # Ví dụ cấu hình
+└── README.md               # Tài liệu này
+```
 
-📖 [Xem Hướng dẫn nhanh bên dưới](#hướng-dẫn-nhanh)
+Mỗi pipeline được quản lý trong **file riêng biệt** để dễ dàng customize.
 
-### 2. Chế độ Chỉ Pipelines (Sử dụng Project/Repo có sẵn)
-Thêm pipelines vào Azure DevOps project và repository đã có sẵn của bạn.
-
-**Sử dụng khi:** Bạn đã có project và repo được tạo bằng tay
-**Tạo ra:** Chỉ Pipelines + Environments + Variable Groups
-
-📖 [Xem Hướng dẫn Existing Resources](README-EXISTING-RESOURCES.md)
-
-## Tính năng
-
-- **Quản lý Project**: Tự động tạo Azure DevOps projects (Chế độ đầy đủ)
-- **Thiết lập Repository**: Cấu hình Git repositories (Chế độ đầy đủ)
-- **Build Pipelines**: Cấu hình CI pipelines
-- **Release Pipelines**: Tạo CD pipelines nhiều giai đoạn
-- **Environments**: Quản lý môi trường triển khai (Dev, Staging, Production)
-- **Variable Groups**: Quản lý biến tập trung
-- **YAML Pipelines**: Cấu hình pipeline hiện đại dựa trên YAML
-- **Linh hoạt**: Hoạt động với project mới hoặc có sẵn
+---
 
 ## Yêu cầu
 
-1. **Tài khoản Azure DevOps**: Cần có organization Azure DevOps đang hoạt động
-2. **Terraform**: Cài đặt Terraform >= 1.0
-3. **Personal Access Token (PAT)**: Tạo PAT với các quyền sau:
-   - Agent Pools (Read & Manage)
-   - Build (Read & Execute)
-   - Code (Full)
-   - Environment (Read & Manage)
-   - Project and Team (Read, Write, & Manage)
-   - Release (Read, Write, Execute & Manage)
-   - Service Connections (Read, Query, & Manage)
-   - Variable Groups (Read, Create, & Manage)
+### 1. Terraform
+```bash
+terraform --version  # >= 1.0
+```
 
-## Hướng dẫn nhanh
+### 2. Azure DevOps Personal Access Token (PAT)
 
-### 1. Tạo Personal Access Token
+Tạo PAT với các quyền:
+- **Build** (Read & Execute)
+- **Code** (Read)
+- **Environment** (Read & Manage)
+- **Variable Groups** (Read, Create, & Manage)
 
-1. Truy cập Azure DevOps: `https://dev.azure.com/ten-organization-cua-ban`
-2. Click vào User Settings (góc trên bên phải) → Personal Access Tokens
-3. Click "New Token"
-4. Đặt tên và chọn các quyền cần thiết (liệt kê ở trên)
-5. Copy token (bạn sẽ không thấy lại nó nữa!)
+Hướng dẫn tạo PAT:
+1. Truy cập: `https://dev.azure.com/your-org/_usersSettings/tokens`
+2. Click **New Token**
+3. Chọn các quyền trên
+4. Copy token (chỉ hiển thị một lần!)
 
-### 2. Cấu hình Terraform
+### 3. Project và Repository có sẵn
+
+Đảm bảo bạn đã có:
+- Project trong Azure DevOps
+- Repository trong project đó
+- File YAML pipelines đã commit vào repo:
+  - `azure-pipelines.yml` (cho build)
+  - `azure-release-pipeline.yml` (cho release)
+
+---
+
+## Hướng dẫn Nhanh
+
+### Bước 1: Clone và Cấu hình
 
 ```bash
-# Copy file cấu hình mẫu
+# Clone repository này
+git clone <your-repo>
+cd azure_cicd
+
+# Copy example config
 cp terraform.tfvars.example terraform.tfvars
 
-# Chỉnh sửa terraform.tfvars với giá trị của bạn
+# Chỉnh sửa terraform.tfvars
 nano terraform.tfvars
 ```
 
-Cập nhật các giá trị sau:
+### Bước 2: Cấu hình terraform.tfvars
+
 ```hcl
-org_service_url       = "https://dev.azure.com/ten-organization-cua-ban"
-personal_access_token = "pat-token-cua-ban"
-project_name          = "DuAnCuaToi"
-repository_name       = "ung-dung-cua-toi"
+# Azure DevOps connection
+org_service_url       = "https://dev.azure.com/your-company"
+personal_access_token = "your-pat-token-here"
+
+# QUAN TRỌNG: Tên phải khớp CHÍNH XÁC với Azure DevOps
+project_name    = "MyExistingProject"
+repository_name = "my-existing-repo"
+
+# Build Pipeline
+build_pipeline_name      = "MyApp-CI"
+build_pipeline_yaml_path = "azure-pipelines.yml"
+
+# Release Pipeline
+release_pipeline_name      = "MyApp-Release"
+release_pipeline_yaml_path = "azure-release-pipeline.yml"
+
+# Variable Group
+variable_group_name = "MyApp-Variables"
+pipeline_variables = {
+  environment = {
+    value     = "production"
+    is_secret = false
+  }
+  api_key = {
+    value     = "secret-key-123"
+    is_secret = true
+  }
+}
+
+# Environments
+environments = [
+  { name = "Development" },
+  { name = "Staging" },
+  { name = "Production" }
+]
 ```
 
-### 3. Khởi tạo và Áp dụng
+### Bước 3: Deploy
 
 ```bash
 # Khởi tạo Terraform
 terraform init
 
-# Xem lại kế hoạch
+# Xem preview
 terraform plan
 
-# Áp dụng cấu hình
+# Tạo pipelines
 terraform apply
+
+# Xem kết quả
+terraform output
 ```
 
-### 4. Truy cập Pipeline
+### Bước 4: Truy cập Pipelines
 
-Sau khi triển khai thành công, Terraform sẽ xuất ra:
-- URL của Project
-- URL của Repository
-- URL của Release Pipeline
-
-## Cấu trúc Project
-
-```
-.
-├── provider.tf                    # Cấu hình provider
-├── main.tf                        # Resources chính
-├── variables.tf                   # Định nghĩa biến
-├── outputs.tf                     # Định nghĩa outputs
-├── terraform.tfvars.example       # Cấu hình mẫu
-├── azure-pipelines.yml            # Template CI pipeline
-├── azure-release-pipeline.yml     # Template CD pipeline
-└── README.md                      # Tài liệu
+Sau khi apply thành công, truy cập:
+```bash
+# Lấy URLs
+terraform output build_pipeline_url
+terraform output release_pipeline_url
 ```
 
-## Resources được tạo
+Hoặc vào Azure DevOps:
+- Pipelines → Pipelines → Bạn sẽ thấy 2 pipelines mới
 
-1. **Azure DevOps Project**: Project mới với các tính năng được kích hoạt
-2. **Git Repository**: Repository mã nguồn
-3. **Build Definition**: CI pipeline để build và test
-4. **Release Pipeline**: CD pipeline nhiều giai đoạn
-5. **Environments**: Development, Staging, Production
-6. **Variable Group**: Biến dùng chung cho pipelines
+---
 
 ## Tùy chỉnh
 
-### Thêm Environments
+### Chỉ tạo Build Pipeline
 
-Chỉnh sửa `terraform.tfvars`:
+Nếu chỉ muốn tạo build pipeline, xóa/disable file `release-pipeline.tf`:
+
+```bash
+mv release-pipeline.tf release-pipeline.tf.disabled
+```
+
+### Chỉ tạo Release Pipeline
+
+Nếu chỉ muốn tạo release pipeline, xóa/disable file `build-pipeline.tf`:
+
+```bash
+mv build-pipeline.tf build-pipeline.tf.disabled
+```
+
+### Không tạo Variable Group
+
+Trong `terraform.tfvars`:
+```hcl
+create_variable_group = false
+build_use_variable_groups = false
+release_use_variable_groups = false
+```
+
+### Không tạo Environments
+
+Trong `terraform.tfvars`:
+```hcl
+create_environments = false
+```
+
+### Thêm nhiều biến
+
+```hcl
+pipeline_variables = {
+  app_name = {
+    value     = "MyApplication"
+    is_secret = false
+  }
+  version = {
+    value     = "2.0.0"
+    is_secret = false
+  }
+  db_password = {
+    value     = "super-secret"
+    is_secret = true
+  }
+  azure_subscription = {
+    value     = "Production-Subscription"
+    is_secret = false
+  }
+}
+```
+
+### Thêm/Bớt Environments
 
 ```hcl
 environments = [
-  {
-    name      = "Development"
-    order     = 1
-    approvers = []
-  },
-  {
-    name      = "QA"
-    order     = 2
-    approvers = ["qa-lead@example.com"]
-  },
-  {
-    name      = "Staging"
-    order     = 3
-    approvers = ["dev-lead@example.com"]
-  },
-  {
-    name      = "Production"
-    order     = 4
-    approvers = ["cto@example.com", "ops-lead@example.com"]
-  }
+  { name = "Development" },
+  { name = "QA" },
+  { name = "UAT" },
+  { name = "Staging" },
+  { name = "Production" }
 ]
 ```
 
-## Quy trình Pipeline
+---
 
-### CI Pipeline (azure-pipelines.yml)
-1. Được kích hoạt khi push lên nhánh main/develop
-2. Build ứng dụng
-3. Chạy tests
-4. Publish artifacts
+## Quản lý
 
-### CD Pipeline (azure-release-pipeline.yml)
-1. Được kích hoạt sau khi CI build thành công
-2. Deploy lên Development (tự động)
-3. Deploy lên Staging (cần phê duyệt)
-4. Deploy lên Production (cần phê duyệt)
-
-## Lệnh quản lý
+### Xem trạng thái hiện tại
 
 ```bash
-# Xem trạng thái hiện tại
 terraform show
+```
 
-# Cập nhật infrastructure
+### Cập nhật pipelines
+
+Sau khi sửa `terraform.tfvars`:
+```bash
+terraform plan
 terraform apply
+```
 
-# Xóa tất cả resources
+### Xóa pipelines
+
+```bash
 terraform destroy
+```
 
-# Format Terraform files
-terraform fmt
+### Format code
 
-# Kiểm tra cấu hình
+```bash
+terraform fmt -recursive
+```
+
+### Validate
+
+```bash
 terraform validate
 ```
 
+---
+
+## Pipeline YAML Templates
+
+### Build Pipeline (azure-pipelines.yml)
+
+```yaml
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  - group: MyApp-Variables  # Variable group từ Terraform
+
+stages:
+  - stage: Build
+    jobs:
+      - job: BuildJob
+        steps:
+          - script: echo "Building..."
+          - script: echo "Testing..."
+          - task: PublishBuildArtifacts@1
+```
+
+### Release Pipeline (azure-release-pipeline.yml)
+
+```yaml
+trigger: none
+
+resources:
+  pipelines:
+    - pipeline: buildPipeline
+      source: 'MyApp-CI'
+
+variables:
+  - group: MyApp-Variables
+
+stages:
+  - stage: Development
+    jobs:
+      - deployment: DeployDev
+        environment: 'Development'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - script: echo "Deploying to Dev"
+
+  - stage: Production
+    dependsOn: Development
+    jobs:
+      - deployment: DeployProd
+        environment: 'Production'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - script: echo "Deploying to Prod"
+```
+
+---
+
+## Troubleshooting
+
+### Lỗi: Project not found
+
+```
+Error: Project "XXX" was not found
+```
+
+**Giải pháp:**
+- Kiểm tra tên project trong `terraform.tfvars` khớp chính xác
+- Tên có phân biệt chữ hoa/thường
+- Kiểm tra PAT có quyền truy cập project
+
+### Lỗi: Repository not found
+
+```
+Error: Repository "XXX" was not found
+```
+
+**Giải pháp:**
+- Kiểm tra tên repository khớp chính xác
+- Repository phải nằm trong project đã chỉ định
+- Kiểm tra PAT có quyền đọc code
+
+### Lỗi: YAML file not found
+
+```
+Error: Could not find file azure-pipelines.yml
+```
+
+**Giải pháp:**
+- Commit file YAML vào repository
+- Kiểm tra đường dẫn trong `terraform.tfvars`
+- Đảm bảo file đã được push lên remote
+
+### Lỗi: Variable group already exists
+
+```
+Error: Variable group "XXX" already exists
+```
+
+**Giải pháp:**
+```bash
+# Import variable group hiện có
+terraform import azuredevops_variable_group.pipeline_vars <project_id>/<group_id>
+
+# Hoặc đổi tên variable group trong terraform.tfvars
+```
+
+---
+
 ## Best Practices
 
-1. **Không bao giờ commit `terraform.tfvars`**: Chứa dữ liệu nhạy cảm
-2. **Sử dụng remote state**: Lưu state trong Azure Storage hoặc Terraform Cloud
-3. **Kích hoạt branch policies**: Bảo vệ nhánh main
-4. **Thiết lập approvals**: Yêu cầu phê duyệt cho production deployments
-5. **Sử dụng variable groups**: Tập trung hóa cấu hình
-6. **Version control YAML**: Giữ định nghĩa pipeline trong source control
+1. **Luôn commit YAML files trước**
+   - Pipeline YAML phải có trong repository
+   - Terraform chỉ tạo pipeline definition, không tạo YAML
 
-## Ghi chú Bảo mật
+2. **Quản lý secrets an toàn**
+   - Đặt `is_secret = true` cho sensitive variables
+   - Không commit `terraform.tfvars` vào git
+   - Sử dụng `.gitignore` (đã có sẵn)
 
-- Lưu trữ PAT an toàn (sử dụng environment variables hoặc secret management)
-- Thường xuyên xoay vòng Personal Access Tokens
-- Sử dụng managed identities khi có thể
-- Giới hạn phạm vi PAT đến quyền tối thiểu cần thiết
-- Kích hoạt Azure DevOps audit logging
+3. **Sử dụng Variable Groups**
+   - Tập trung hóa cấu hình
+   - Dễ dàng thay đổi giữa các môi trường
+   - Share giữa nhiều pipelines
 
-## Đóng góp
+4. **Environments cho approvals**
+   - Tạo environments cho từng môi trường triển khai
+   - Thiết lập approvals trong Azure DevOps UI
+   - Bảo vệ Production environment
 
-1. Fork repository
-2. Tạo feature branch
-3. Thực hiện thay đổi
-4. Submit pull request
+5. **Version control**
+   - Commit tất cả `.tf` files vào git
+   - Review changes qua pull requests
+   - Tag versions khi có thay đổi lớn
+
+---
+
+## Ví dụ Thực tế
+
+### Ví dụ 1: Web Application
+
+```hcl
+# terraform.tfvars
+project_name    = "WebAppProject"
+repository_name = "webapp-frontend"
+
+build_pipeline_name   = "WebApp-Build"
+release_pipeline_name = "WebApp-Deploy"
+
+pipeline_variables = {
+  node_version = {
+    value     = "18.x"
+    is_secret = false
+  }
+  npm_token = {
+    value     = "npm_xxxxx"
+    is_secret = true
+  }
+}
+
+environments = [
+  { name = "Dev" },
+  { name = "Staging" },
+  { name = "Production" }
+]
+```
+
+### Ví dụ 2: Microservices
+
+Tạo nhiều pipelines cho từng service:
+
+```bash
+# Duplicate và customize cho từng service
+cp build-pipeline.tf build-pipeline-api.tf
+cp build-pipeline.tf build-pipeline-web.tf
+cp release-pipeline.tf release-pipeline-api.tf
+cp release-pipeline.tf release-pipeline-web.tf
+```
+
+Sửa resource names trong mỗi file để tránh conflict.
+
+---
+
+## Lệnh hữu ích
+
+```bash
+# Makefile commands
+make help      # Hiển thị các commands
+make init      # Terraform init
+make plan      # Terraform plan
+make apply     # Terraform apply
+make destroy   # Terraform destroy
+make output    # Show outputs
+make fmt       # Format code
+make validate  # Validate config
+```
+
+---
 
 ## Giấy phép
 
-MIT License - thoải mái sử dụng và chỉnh sửa
+MIT License - Thoải mái sử dụng và chỉnh sửa
+
+---
+---
+
+# Azure DevOps Pipelines with Terraform
+
+Manage Build and Release Pipelines in Azure DevOps using Terraform.
+
+## ⚠️ Important
+
+This repository does **NOT create** Azure DevOps Project or Git Repository.
+
+You need to have:
+- ✅ Existing Azure DevOps Project
+- ✅ Existing Git Repository in that project
+- ✅ Pipeline YAML files committed to the repository
+
+This repository only creates:
+- ✅ Build Pipeline (CI)
+- ✅ Release Pipeline (CD)
+- ✅ Environments (Development, Staging, Production)
+- ✅ Variable Groups (shared variables)
+
+## Quick Start
+
+```bash
+# 1. Copy example config
+cp terraform.tfvars.example terraform.tfvars
+
+# 2. Edit with your values
+nano terraform.tfvars
+
+# 3. Deploy
+terraform init
+terraform plan
+terraform apply
+```
+
+## Configuration
+
+Edit `terraform.tfvars`:
+
+```hcl
+org_service_url       = "https://dev.azure.com/your-org"
+personal_access_token = "your-pat-token"
+
+# IMPORTANT: Must match exact names in Azure DevOps
+project_name    = "ExistingProject"
+repository_name = "existing-repo"
+
+# Pipelines to create
+build_pipeline_name   = "CI-Pipeline"
+release_pipeline_name = "CD-Pipeline"
+
+# Variable group
+pipeline_variables = {
+  api_key = {
+    value     = "secret"
+    is_secret = true
+  }
+}
+```
+
+## File Structure
+
+Each pipeline is managed in a **separate file**:
+
+- `build-pipeline.tf` - Build/CI pipeline
+- `release-pipeline.tf` - Release/CD pipeline
+- `environments.tf` - Deployment environments
+- `variable-groups.tf` - Shared variables
+
+Easy to customize or disable individual components!
+
+## Customization
+
+### Create only Build Pipeline
+
+```bash
+mv release-pipeline.tf release-pipeline.tf.disabled
+```
+
+### Create only Release Pipeline
+
+```bash
+mv build-pipeline.tf build-pipeline.tf.disabled
+```
+
+### Don't create Variable Groups
+
+```hcl
+create_variable_group = false
+```
+
+## Outputs
+
+```bash
+terraform output build_pipeline_url
+terraform output release_pipeline_url
+```
+
+## Requirements
+
+- Terraform >= 1.0
+- Azure DevOps PAT with permissions:
+  - Build (Read & Execute)
+  - Code (Read)
+  - Environment (Read & Manage)
+  - Variable Groups (Read, Create, & Manage)
+
+## License
+
+MIT License
