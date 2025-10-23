@@ -128,7 +128,7 @@
             "condition": "succeeded()",
             "overrideInputs": {},
             "deploymentGroupId": "<DEVELOPMENT_DEPLOYMENT_GROUP_ID>",
-            "tags": "<DEVELOPMENT_TAGS>"
+            "tags": <DEVELOPMENT_TAGS>
           },
           "rank": 1,
           "phaseType": 3,
@@ -273,7 +273,7 @@
             "condition": "succeeded()",
             "overrideInputs": {},
             "deploymentGroupId": "<STAGING_DEPLOYMENT_GROUP_ID>",
-            "tags": "<STAGING_TAGS>"
+            "tags": <STAGING_TAGS>
           },
           "rank": 1,
           "phaseType": 3,
@@ -418,7 +418,7 @@
             "condition": "succeeded()",
             "overrideInputs": {},
             "deploymentGroupId": "<PRODUCTION_DEPLOYMENT_GROUP_ID>",
-            "tags": "<PRODUCTION_TAGS>"
+            "tags": <PRODUCTION_TAGS>
           },
           "rank": 1,
           "phaseType": 3,
