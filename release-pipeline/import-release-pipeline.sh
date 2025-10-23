@@ -244,6 +244,47 @@ DEVELOPMENT_TAGS_JSON=$(echo "$DEVELOPMENT_TAGS" | sed 's/,/","/g' | sed 's/^/["
 STAGING_TAGS_JSON=$(echo "$STAGING_TAGS" | sed 's/,/","/g' | sed 's/^/["/' | sed 's/$/"]/')
 PRODUCTION_TAGS_JSON=$(echo "$PRODUCTION_TAGS" | sed 's/,/","/g' | sed 's/^/["/' | sed 's/$/"]/')
 
+# Function to convert key=value pairs to JSON object
+variables_to_json() {
+    local vars="$1"
+
+    if [ -z "$vars" ]; then
+        echo "{}"
+        return
+    fi
+
+    local result="{"
+    local first=true
+
+    while IFS='=' read -r key value; do
+        # Skip empty lines and comments
+        if [ -z "$key" ] || [[ "$key" =~ ^[[:space:]]*# ]]; then
+            continue
+        fi
+
+        # Trim whitespace
+        key=$(echo "$key" | xargs)
+        value=$(echo "$value" | xargs)
+
+        if [ "$first" = true ]; then
+            first=false
+        else
+            result="$result,"
+        fi
+
+        result="$result\"$key\":{\"value\":\"$value\"}"
+    done <<< "$vars"
+
+    result="$result}"
+    echo "$result"
+}
+
+# Convert variables to JSON
+PIPELINE_VARIABLES_JSON=$(variables_to_json "$PIPELINE_VARIABLES")
+DEVELOPMENT_VARIABLES_JSON=$(variables_to_json "$DEVELOPMENT_VARIABLES")
+STAGING_VARIABLES_JSON=$(variables_to_json "$STAGING_VARIABLES")
+PRODUCTION_VARIABLES_JSON=$(variables_to_json "$PRODUCTION_VARIABLES")
+
 # Escape scripts for JSON (escape newlines, quotes, backslashes)
 DEVELOPMENT_SCRIPT_ESCAPED=$(echo "$DEVELOPMENT_SCRIPT" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | awk '{printf "%s\\n", $0}' | sed 's/\\n$//')
 STAGING_SCRIPT_ESCAPED=$(echo "$STAGING_SCRIPT" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | awk '{printf "%s\\n", $0}' | sed 's/\\n$//')
@@ -268,6 +309,10 @@ JSON_DEFINITION=$(echo "$JSON_TEMPLATE" | \
   sed "s|<DEVELOPMENT_CONDITIONS>|$DEVELOPMENT_CONDITIONS|g" | \
   sed "s|<STAGING_CONDITIONS>|$STAGING_CONDITIONS|g" | \
   sed "s|<PRODUCTION_CONDITIONS>|$PRODUCTION_CONDITIONS|g" | \
+  sed "s|<PIPELINE_VARIABLES>|$PIPELINE_VARIABLES_JSON|g" | \
+  sed "s|<DEVELOPMENT_VARIABLES>|$DEVELOPMENT_VARIABLES_JSON|g" | \
+  sed "s|<STAGING_VARIABLES>|$STAGING_VARIABLES_JSON|g" | \
+  sed "s|<PRODUCTION_VARIABLES>|$PRODUCTION_VARIABLES_JSON|g" | \
   sed "s/<DEVELOPMENT_DEPLOYMENT_GROUP_ID>/$DEVELOPMENT_DEPLOYMENT_GROUP_ID/g" | \
   sed "s|<DEVELOPMENT_TAGS>|$DEVELOPMENT_TAGS_JSON|g" | \
   sed "s|<DEVELOPMENT_SCRIPT>|$DEVELOPMENT_SCRIPT_FOR_SED|g" | \

@@ -1,56 +1,9 @@
 {
   "name": "<PIPELINE_NAME>",
   "source": 2,
-  "comment": "Auto-generated release pipeline with multi-stage deployment",
-  "artifacts": [
-    {
-      "sourceId": "<REPO_PROJECT_ID>:<REPO_ID>",
-      "type": "Git",
-      "alias": "_<REPO_NAME>",
-      "definitionReference": {
-        "branches": {
-          "id": "<DEFAULT_BRANCH>",
-          "name": "<DEFAULT_BRANCH>"
-        },
-        "checkoutSubmodules": {
-          "id": "",
-          "name": ""
-        },
-        "defaultVersionSpecific": {
-          "id": "",
-          "name": ""
-        },
-        "defaultVersionType": {
-          "id": "selectDuringReleaseCreationType",
-          "name": "Specify at the time of release creation"
-        },
-        "definition": {
-          "id": "<REPO_ID>",
-          "name": "<REPO_NAME>"
-        },
-        "fetchDepth": {
-          "id": "",
-          "name": ""
-        },
-        "gitLfsSupport": {
-          "id": "",
-          "name": ""
-        },
-        "project": {
-          "id": "<REPO_PROJECT_ID>",
-          "name": "<REPO_PROJECT_NAME>"
-        }
-      },
-      "isPrimary": true
-    }
-  ],
-  "triggers": [
-    {
-      "branchFilters": <ALL_BRANCHES_ARRAY>,
-      "alias": "_<REPO_NAME>",
-      "triggerType": 3
-    }
-  ],
+  "description": null,
+  "variables": <PIPELINE_VARIABLES>,
+  "variableGroups": [],
   "environments": [
     {
       "id": -1,
@@ -60,14 +13,15 @@
         "displayName": "Auto",
         "id": null
       },
-      "variables": {},
+      "variables": <DEVELOPMENT_VARIABLES>,
       "variableGroups": [],
       "preDeployApprovals": {
         "approvals": [
           {
             "rank": 1,
             "isAutomated": true,
-            "isNotificationOn": false
+            "isNotificationOn": false,
+            "id": 0
           }
         ],
         "approvalOptions": {
@@ -87,7 +41,8 @@
           {
             "rank": 1,
             "isAutomated": true,
-            "isNotificationOn": false
+            "isNotificationOn": false,
+            "id": 0
           }
         ],
         "approvalOptions": {
@@ -102,52 +57,44 @@
       "deployPhases": [
         {
           "deploymentInput": {
-            "parallelExecution": {
-              "parallelExecutionType": 0
-            },
-            "agentSpecification": null,
+            "healthPercent": 0,
+            "deploymentHealthOption": "Custom",
+            "tags": <DEVELOPMENT_TAGS>,
             "skipArtifactsDownload": false,
             "artifactsDownloadInput": {
               "downloadInputs": []
             },
-            "queueId": 0,
+            "queueId": <DEVELOPMENT_DEPLOYMENT_GROUP_ID>,
             "demands": [],
             "enableAccessToken": false,
             "timeoutInMinutes": 0,
             "jobCancelTimeoutInMinutes": 1,
             "condition": "succeeded()",
-            "overrideInputs": {},
-            "deploymentGroupId": "<DEVELOPMENT_DEPLOYMENT_GROUP_ID>",
-            "tags": <DEVELOPMENT_TAGS>
+            "overrideInputs": {}
           },
           "rank": 1,
-          "phaseType": 3,
-          "name": "DeployToDevelopment",
+          "phaseType": 4,
+          "name": "Deployment group job",
           "refName": null,
           "workflowTasks": [
             {
               "environment": {},
               "taskId": "d9bafed4-0b18-4f58-968d-86655b4d2ce9",
               "version": "2.*",
-              "name": "Deploy to Development",
+              "name": "Deployment Script",
               "refName": "",
               "enabled": true,
               "alwaysRun": false,
               "continueOnError": false,
               "timeoutInMinutes": 0,
+              "retryCountOnTaskFailure": 0,
               "definitionType": "task",
               "overrideInputs": {},
               "condition": "succeeded()",
               "inputs": {
-                "targetType": "inline",
-                "filePath": "",
-                "arguments": "",
                 "script": "<DEVELOPMENT_SCRIPT>",
-                "errorActionPreference": "stop",
-                "failOnStderr": "false",
-                "ignoreLASTEXITCODE": "false",
-                "pwsh": "false",
-                "workingDirectory": ""
+                "workingDirectory": "",
+                "failOnStderr": "false"
               }
             }
           ]
@@ -178,14 +125,27 @@
         "queueDepthCount": 0
       },
       "schedules": [],
-      "currentRelease": null,
+      "currentRelease": {
+        "id": 0,
+        "url": "",
+        "_links": {}
+      },
       "retentionPolicy": {
         "daysToKeep": 30,
         "releasesToKeep": 3,
         "retainBuild": true
       },
       "processParameters": {},
-      "properties": {},
+      "properties": {
+        "BoardsEnvironmentType": {
+          "$type": "System.String",
+          "$value": "unmapped"
+        },
+        "LinkBoardsWorkItems": {
+          "$type": "System.String",
+          "$value": "False"
+        }
+      },
       "preDeploymentGates": {
         "id": 0,
         "gatesOptions": null,
@@ -206,14 +166,15 @@
         "displayName": "Auto",
         "id": null
       },
-      "variables": {},
+      "variables": <STAGING_VARIABLES>,
       "variableGroups": [],
       "preDeployApprovals": {
         "approvals": [
           {
             "rank": 1,
             "isAutomated": true,
-            "isNotificationOn": false
+            "isNotificationOn": false,
+            "id": 0
           }
         ],
         "approvalOptions": {
@@ -233,7 +194,8 @@
           {
             "rank": 1,
             "isAutomated": true,
-            "isNotificationOn": false
+            "isNotificationOn": false,
+            "id": 0
           }
         ],
         "approvalOptions": {
@@ -248,52 +210,44 @@
       "deployPhases": [
         {
           "deploymentInput": {
-            "parallelExecution": {
-              "parallelExecutionType": 0
-            },
-            "agentSpecification": null,
+            "healthPercent": 0,
+            "deploymentHealthOption": "Custom",
+            "tags": <STAGING_TAGS>,
             "skipArtifactsDownload": false,
             "artifactsDownloadInput": {
               "downloadInputs": []
             },
-            "queueId": 0,
+            "queueId": <STAGING_DEPLOYMENT_GROUP_ID>,
             "demands": [],
             "enableAccessToken": false,
             "timeoutInMinutes": 0,
             "jobCancelTimeoutInMinutes": 1,
             "condition": "succeeded()",
-            "overrideInputs": {},
-            "deploymentGroupId": "<STAGING_DEPLOYMENT_GROUP_ID>",
-            "tags": <STAGING_TAGS>
+            "overrideInputs": {}
           },
           "rank": 1,
-          "phaseType": 3,
-          "name": "DeployToStaging",
+          "phaseType": 4,
+          "name": "Deployment group job",
           "refName": null,
           "workflowTasks": [
             {
               "environment": {},
               "taskId": "d9bafed4-0b18-4f58-968d-86655b4d2ce9",
               "version": "2.*",
-              "name": "Deploy to Staging",
+              "name": "Deployment Script",
               "refName": "",
               "enabled": true,
               "alwaysRun": false,
               "continueOnError": false,
               "timeoutInMinutes": 0,
+              "retryCountOnTaskFailure": 0,
               "definitionType": "task",
               "overrideInputs": {},
               "condition": "succeeded()",
               "inputs": {
-                "targetType": "inline",
-                "filePath": "",
-                "arguments": "",
                 "script": "<STAGING_SCRIPT>",
-                "errorActionPreference": "stop",
-                "failOnStderr": "false",
-                "ignoreLASTEXITCODE": "false",
-                "pwsh": "false",
-                "workingDirectory": ""
+                "workingDirectory": "",
+                "failOnStderr": "false"
               }
             }
           ]
@@ -324,14 +278,27 @@
         "queueDepthCount": 0
       },
       "schedules": [],
-      "currentRelease": null,
+      "currentRelease": {
+        "id": 0,
+        "url": "",
+        "_links": {}
+      },
       "retentionPolicy": {
         "daysToKeep": 30,
         "releasesToKeep": 3,
         "retainBuild": true
       },
       "processParameters": {},
-      "properties": {},
+      "properties": {
+        "BoardsEnvironmentType": {
+          "$type": "System.String",
+          "$value": "unmapped"
+        },
+        "LinkBoardsWorkItems": {
+          "$type": "System.String",
+          "$value": "False"
+        }
+      },
       "preDeploymentGates": {
         "id": 0,
         "gatesOptions": null,
@@ -352,14 +319,15 @@
         "displayName": "Auto",
         "id": null
       },
-      "variables": {},
+      "variables": <PRODUCTION_VARIABLES>,
       "variableGroups": [],
       "preDeployApprovals": {
         "approvals": [
           {
             "rank": 1,
             "isAutomated": true,
-            "isNotificationOn": false
+            "isNotificationOn": false,
+            "id": 0
           }
         ],
         "approvalOptions": {
@@ -379,7 +347,8 @@
           {
             "rank": 1,
             "isAutomated": true,
-            "isNotificationOn": false
+            "isNotificationOn": false,
+            "id": 0
           }
         ],
         "approvalOptions": {
@@ -394,52 +363,44 @@
       "deployPhases": [
         {
           "deploymentInput": {
-            "parallelExecution": {
-              "parallelExecutionType": 0
-            },
-            "agentSpecification": null,
+            "healthPercent": 0,
+            "deploymentHealthOption": "Custom",
+            "tags": <PRODUCTION_TAGS>,
             "skipArtifactsDownload": false,
             "artifactsDownloadInput": {
               "downloadInputs": []
             },
-            "queueId": 0,
+            "queueId": <PRODUCTION_DEPLOYMENT_GROUP_ID>,
             "demands": [],
             "enableAccessToken": false,
             "timeoutInMinutes": 0,
             "jobCancelTimeoutInMinutes": 1,
             "condition": "succeeded()",
-            "overrideInputs": {},
-            "deploymentGroupId": "<PRODUCTION_DEPLOYMENT_GROUP_ID>",
-            "tags": <PRODUCTION_TAGS>
+            "overrideInputs": {}
           },
           "rank": 1,
-          "phaseType": 3,
-          "name": "DeployToProduction",
+          "phaseType": 4,
+          "name": "Deployment group job",
           "refName": null,
           "workflowTasks": [
             {
               "environment": {},
               "taskId": "d9bafed4-0b18-4f58-968d-86655b4d2ce9",
               "version": "2.*",
-              "name": "Deploy to Production",
+              "name": "Deployment Script",
               "refName": "",
               "enabled": true,
               "alwaysRun": false,
               "continueOnError": false,
               "timeoutInMinutes": 0,
+              "retryCountOnTaskFailure": 0,
               "definitionType": "task",
               "overrideInputs": {},
               "condition": "succeeded()",
               "inputs": {
-                "targetType": "inline",
-                "filePath": "",
-                "arguments": "",
                 "script": "<PRODUCTION_SCRIPT>",
-                "errorActionPreference": "stop",
-                "failOnStderr": "false",
-                "ignoreLASTEXITCODE": "false",
-                "pwsh": "false",
-                "workingDirectory": ""
+                "workingDirectory": "",
+                "failOnStderr": "false"
               }
             }
           ]
@@ -470,14 +431,27 @@
         "queueDepthCount": 0
       },
       "schedules": [],
-      "currentRelease": null,
+      "currentRelease": {
+        "id": 0,
+        "url": "",
+        "_links": {}
+      },
       "retentionPolicy": {
         "daysToKeep": 30,
         "releasesToKeep": 3,
         "retainBuild": true
       },
       "processParameters": {},
-      "properties": {},
+      "properties": {
+        "BoardsEnvironmentType": {
+          "$type": "System.String",
+          "$value": "unmapped"
+        },
+        "LinkBoardsWorkItems": {
+          "$type": "System.String",
+          "$value": "False"
+        }
+      },
       "preDeploymentGates": {
         "id": 0,
         "gatesOptions": null,
@@ -491,11 +465,76 @@
       "environmentTriggers": []
     }
   ],
-  "variables": {},
-  "variableGroups": [],
-  "properties": {},
+  "artifacts": [
+    {
+      "sourceId": "<REPO_PROJECT_ID>:<REPO_ID>",
+      "type": "Git",
+      "alias": "_<REPO_NAME>",
+      "definitionReference": {
+        "branches": {
+          "id": "<DEFAULT_BRANCH>",
+          "name": "<DEFAULT_BRANCH>"
+        },
+        "checkoutNestedSubmodules": {
+          "id": "True",
+          "name": "Any nested submodules within"
+        },
+        "checkoutSubmodules": {
+          "id": "",
+          "name": ""
+        },
+        "defaultVersionSpecific": {
+          "id": "",
+          "name": ""
+        },
+        "defaultVersionType": {
+          "id": "latestFromBranchType",
+          "name": "Latest from the default branch"
+        },
+        "definition": {
+          "id": "<REPO_ID>",
+          "name": "<REPO_NAME>"
+        },
+        "fetchDepth": {
+          "id": "",
+          "name": ""
+        },
+        "gitLfsSupport": {
+          "id": "",
+          "name": ""
+        },
+        "project": {
+          "id": "<REPO_PROJECT_ID>",
+          "name": "<REPO_PROJECT_NAME>"
+        }
+      },
+      "isPrimary": true,
+      "isRetained": false
+    }
+  ],
+  "triggers": [
+    {
+      "branchFilters": <ALL_BRANCHES_ARRAY>,
+      "alias": "_<REPO_NAME>",
+      "triggerType": 3
+    }
+  ],
   "releaseNameFormat": "Release-$(rev:r)",
   "tags": [],
+  "properties": {
+    "DefinitionCreationSource": {
+      "$type": "System.String",
+      "$value": "ReleaseNew"
+    },
+    "IntegrateBoardsWorkItems": {
+      "$type": "System.String",
+      "$value": "False"
+    },
+    "IntegrateJiraWorkItems": {
+      "$type": "System.String",
+      "$value": "false"
+    }
+  },
   "path": "\\",
   "projectReference": null
 }

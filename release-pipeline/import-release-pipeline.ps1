@@ -331,6 +331,38 @@ $developmentTagsJson = '["' + ($DEVELOPMENT_TAGS -replace ',','","') + '"]'
 $stagingTagsJson = '["' + ($STAGING_TAGS -replace ',','","') + '"]'
 $productionTagsJson = '["' + ($PRODUCTION_TAGS -replace ',','","') + '"]'
 
+# Function to convert key=value pairs to JSON object
+function Convert-VariablesToJson {
+    param([string]$variables)
+
+    if ([string]::IsNullOrWhiteSpace($variables)) {
+        return "{}"
+    }
+
+    $lines = $variables -split "`n" | Where-Object { $_ -match '^\s*[^#]' -and $_ -match '=' }
+
+    if ($lines.Count -eq 0) {
+        return "{}"
+    }
+
+    $varObjects = @()
+    foreach ($line in $lines) {
+        if ($line -match '^\s*([^=]+?)\s*=\s*(.+?)\s*$') {
+            $key = $matches[1].Trim()
+            $value = $matches[2].Trim()
+            $varObjects += "`"$key`":{`"value`":`"$value`"}"
+        }
+    }
+
+    return "{" + ($varObjects -join ",") + "}"
+}
+
+# Convert variables to JSON
+$pipelineVariablesJson = Convert-VariablesToJson -variables $PIPELINE_VARIABLES
+$developmentVariablesJson = Convert-VariablesToJson -variables $DEVELOPMENT_VARIABLES
+$stagingVariablesJson = Convert-VariablesToJson -variables $STAGING_VARIABLES
+$productionVariablesJson = Convert-VariablesToJson -variables $PRODUCTION_VARIABLES
+
 # Escape scripts for JSON (escape backslashes first, then quotes, then add newlines)
 $developmentScriptEscaped = $DEVELOPMENT_SCRIPT -replace '\\','\\\\' -replace '"','\"' -replace "`r`n","\n" -replace "`n","\n" -replace '\n$',''
 $stagingScriptEscaped = $STAGING_SCRIPT -replace '\\','\\\\' -replace '"','\"' -replace "`r`n","\n" -replace "`n","\n" -replace '\n$',''
@@ -350,6 +382,10 @@ $jsonDefinition = $jsonTemplate `
     -replace '<DEVELOPMENT_CONDITIONS>', $developmentConditions `
     -replace '<STAGING_CONDITIONS>', $stagingConditions `
     -replace '<PRODUCTION_CONDITIONS>', $productionConditions `
+    -replace '<PIPELINE_VARIABLES>', $pipelineVariablesJson `
+    -replace '<DEVELOPMENT_VARIABLES>', $developmentVariablesJson `
+    -replace '<STAGING_VARIABLES>', $stagingVariablesJson `
+    -replace '<PRODUCTION_VARIABLES>', $productionVariablesJson `
     -replace '<DEVELOPMENT_DEPLOYMENT_GROUP_ID>', $DEVELOPMENT_DEPLOYMENT_GROUP_ID `
     -replace '<DEVELOPMENT_TAGS>', $developmentTagsJson `
     -replace '<DEVELOPMENT_SCRIPT>', $developmentScriptEscaped `
