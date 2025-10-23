@@ -284,33 +284,39 @@ if ([string]::IsNullOrEmpty($DEVELOPMENT_DEPLOYMENT_GROUP_ID) -or
 Write-Host ""
 Write-Host "Step 5: Preparing release definition..." -ForegroundColor Blue
 
-# Function to convert comma-separated branches to JSON trigger conditions
-function Convert-BranchesToJson {
+# Function to convert comma-separated branches to simple JSON array
+function Convert-BranchesToArray {
     param([string]$branches)
 
-    $branchArray = $branches -split ','
-    $triggerConditions = @()
-
-    foreach ($branch in $branchArray) {
-        $triggerConditions += @{
-            sourceBranch = $branch.Trim()
-            tags = @()
-            useBuildDefinitionBranch = $false
-            createReleaseOnBuildTagging = $false
-        }
-    }
-
-    return ($triggerConditions | ConvertTo-Json -Depth 10 -Compress)
+    $branchArray = $branches -split ',' | ForEach-Object { $_.Trim() }
+    return ($branchArray | ConvertTo-Json -Compress)
 }
 
-# Convert branches to JSON trigger conditions
-$developmentBranchesJson = Convert-BranchesToJson -branches $DEVELOPMENT_BRANCHES
-$stagingBranchesJson = Convert-BranchesToJson -branches $STAGING_BRANCHES
-$productionBranchesJson = Convert-BranchesToJson -branches $PRODUCTION_BRANCHES
+# Function to create branch conditions for environments
+function Convert-BranchesToConditions {
+    param(
+        [string]$branches,
+        [string]$repoName
+    )
+
+    $branchArray = $branches -split ',' | ForEach-Object { $_.Trim() }
+    $conditions = ""
+
+    foreach ($branch in $branchArray) {
+        $conditions += ",{`"name`":`"_$repoName`",`"conditionType`":4,`"value`":`"{\\`"sourceBranch\\`":\\`"$branch\\`",\\`"tags\\`":[]}`",`"result`":null}"
+    }
+
+    return $conditions
+}
 
 # Combine all branches for the artifact trigger
 $allBranches = "$DEVELOPMENT_BRANCHES,$STAGING_BRANCHES,$PRODUCTION_BRANCHES"
-$allBranchesJson = Convert-BranchesToJson -branches $allBranches
+$allBranchesArray = Convert-BranchesToArray -branches $allBranches
+
+# Create branch conditions for each environment
+$developmentConditions = Convert-BranchesToConditions -branches $DEVELOPMENT_BRANCHES -repoName $REPO_NAME
+$stagingConditions = Convert-BranchesToConditions -branches $STAGING_BRANCHES -repoName $REPO_NAME
+$productionConditions = Convert-BranchesToConditions -branches $PRODUCTION_BRANCHES -repoName $REPO_NAME
 
 Write-Host "✓ Branch triggers configured:" -ForegroundColor Green
 Write-Host "  - Development: $DEVELOPMENT_BRANCHES" -ForegroundColor Green
@@ -340,10 +346,10 @@ $jsonDefinition = $jsonTemplate `
     -replace '<REPO_ID>', $REPO_ID `
     -replace '<REPO_NAME>', $REPO_NAME `
     -replace '<DEFAULT_BRANCH>', $DEFAULT_BRANCH `
-    -replace '<ALL_BRANCHES_JSON>', $allBranchesJson `
-    -replace '<DEVELOPMENT_BRANCHES_JSON>', $developmentBranchesJson `
-    -replace '<STAGING_BRANCHES_JSON>', $stagingBranchesJson `
-    -replace '<PRODUCTION_BRANCHES_JSON>', $productionBranchesJson `
+    -replace '<ALL_BRANCHES_ARRAY>', $allBranchesArray `
+    -replace '<DEVELOPMENT_CONDITIONS>', $developmentConditions `
+    -replace '<STAGING_CONDITIONS>', $stagingConditions `
+    -replace '<PRODUCTION_CONDITIONS>', $productionConditions `
     -replace '<DEVELOPMENT_DEPLOYMENT_GROUP_ID>', $DEVELOPMENT_DEPLOYMENT_GROUP_ID `
     -replace '<DEVELOPMENT_TAGS>', $developmentTagsJson `
     -replace '<DEVELOPMENT_SCRIPT>', $developmentScriptEscaped `

@@ -46,9 +46,9 @@
   ],
   "triggers": [
     {
-      "artifactAlias": "_<REPO_NAME>",
-      "triggerConditions": <ALL_BRANCHES_JSON>,
-      "triggerType": 2
+      "branchFilters": <ALL_BRANCHES_ARRAY>,
+      "alias": "_<REPO_NAME>",
+      "triggerType": 3
     }
   ],
   "environments": [
@@ -169,8 +169,9 @@
         {
           "name": "ReleaseStarted",
           "conditionType": 1,
-          "value": ""
-        }
+          "value": "",
+          "result": null
+        }<DEVELOPMENT_CONDITIONS>
       ],
       "executionPolicy": {
         "concurrencyCount": 1,
@@ -312,10 +313,11 @@
       "demands": [],
       "conditions": [
         {
-          "name": "Development",
-          "conditionType": 2,
-          "value": "4"
-        }
+          "name": "ReleaseStarted",
+          "conditionType": 1,
+          "value": "",
+          "result": null
+        }<STAGING_CONDITIONS>
       ],
       "executionPolicy": {
         "concurrencyCount": 1,
@@ -457,10 +459,11 @@
       "demands": [],
       "conditions": [
         {
-          "name": "Staging",
-          "conditionType": 2,
-          "value": "4"
-        }
+          "name": "ReleaseStarted",
+          "conditionType": 1,
+          "value": "",
+          "result": null
+        }<PRODUCTION_CONDITIONS>
       ],
       "executionPolicy": {
         "concurrencyCount": 1,

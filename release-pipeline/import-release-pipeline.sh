@@ -188,8 +188,8 @@ fi
 echo ""
 echo -e "${BLUE}Step 5: Preparing release definition...${NC}"
 
-# Function to convert comma-separated branches to JSON trigger conditions
-branches_to_json() {
+# Function to convert comma-separated branches to simple JSON array
+branches_to_array() {
     local branches="$1"
     local result="["
     local first=true
@@ -201,21 +201,35 @@ branches_to_json() {
         else
             result="$result,"
         fi
-        result="$result{\"sourceBranch\":\"$branch\",\"tags\":[],\"useBuildDefinitionBranch\":false,\"createReleaseOnBuildTagging\":false}"
+        result="$result\"$branch\""
     done
 
     result="$result]"
     echo "$result"
 }
 
-# Convert branches to JSON trigger conditions
-DEVELOPMENT_BRANCHES_JSON=$(branches_to_json "$DEVELOPMENT_BRANCHES")
-STAGING_BRANCHES_JSON=$(branches_to_json "$STAGING_BRANCHES")
-PRODUCTION_BRANCHES_JSON=$(branches_to_json "$PRODUCTION_BRANCHES")
+# Function to create branch conditions for environments
+branches_to_conditions() {
+    local branches="$1"
+    local repo_name="$2"
+    local result=""
+
+    IFS=',' read -ra BRANCH_ARRAY <<< "$branches"
+    for branch in "${BRANCH_ARRAY[@]}"; do
+        result="$result,{\"name\":\"_$repo_name\",\"conditionType\":4,\"value\":\"{\\\"sourceBranch\\\":\\\"$branch\\\",\\\"tags\\\":[]}\",\"result\":null}"
+    done
+
+    echo "$result"
+}
 
 # Combine all branches for the artifact trigger
 ALL_BRANCHES="${DEVELOPMENT_BRANCHES},${STAGING_BRANCHES},${PRODUCTION_BRANCHES}"
-ALL_BRANCHES_JSON=$(branches_to_json "$ALL_BRANCHES")
+ALL_BRANCHES_ARRAY=$(branches_to_array "$ALL_BRANCHES")
+
+# Create branch conditions for each environment
+DEVELOPMENT_CONDITIONS=$(branches_to_conditions "$DEVELOPMENT_BRANCHES" "$REPO_NAME")
+STAGING_CONDITIONS=$(branches_to_conditions "$STAGING_BRANCHES" "$REPO_NAME")
+PRODUCTION_CONDITIONS=$(branches_to_conditions "$PRODUCTION_BRANCHES" "$REPO_NAME")
 
 echo -e "${GREEN}✓ Branch triggers configured:${NC}"
 echo -e "${GREEN}  - Development: ${DEVELOPMENT_BRANCHES}${NC}"
@@ -250,10 +264,10 @@ JSON_DEFINITION=$(echo "$JSON_TEMPLATE" | \
   sed "s/<REPO_ID>/$REPO_ID/g" | \
   sed "s/<REPO_NAME>/$REPO_NAME/g" | \
   sed "s/<DEFAULT_BRANCH>/$DEFAULT_BRANCH/g" | \
-  sed "s|<ALL_BRANCHES_JSON>|$ALL_BRANCHES_JSON|g" | \
-  sed "s|<DEVELOPMENT_BRANCHES_JSON>|$DEVELOPMENT_BRANCHES_JSON|g" | \
-  sed "s|<STAGING_BRANCHES_JSON>|$STAGING_BRANCHES_JSON|g" | \
-  sed "s|<PRODUCTION_BRANCHES_JSON>|$PRODUCTION_BRANCHES_JSON|g" | \
+  sed "s|<ALL_BRANCHES_ARRAY>|$ALL_BRANCHES_ARRAY|g" | \
+  sed "s|<DEVELOPMENT_CONDITIONS>|$DEVELOPMENT_CONDITIONS|g" | \
+  sed "s|<STAGING_CONDITIONS>|$STAGING_CONDITIONS|g" | \
+  sed "s|<PRODUCTION_CONDITIONS>|$PRODUCTION_CONDITIONS|g" | \
   sed "s/<DEVELOPMENT_DEPLOYMENT_GROUP_ID>/$DEVELOPMENT_DEPLOYMENT_GROUP_ID/g" | \
   sed "s|<DEVELOPMENT_TAGS>|$DEVELOPMENT_TAGS_JSON|g" | \
   sed "s|<DEVELOPMENT_SCRIPT>|$DEVELOPMENT_SCRIPT_FOR_SED|g" | \
