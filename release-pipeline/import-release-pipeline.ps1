@@ -308,6 +308,10 @@ $developmentBranchesJson = Convert-BranchesToJson -branches $DEVELOPMENT_BRANCHE
 $stagingBranchesJson = Convert-BranchesToJson -branches $STAGING_BRANCHES
 $productionBranchesJson = Convert-BranchesToJson -branches $PRODUCTION_BRANCHES
 
+# Combine all branches for the artifact trigger
+$allBranches = "$DEVELOPMENT_BRANCHES,$STAGING_BRANCHES,$PRODUCTION_BRANCHES"
+$allBranchesJson = Convert-BranchesToJson -branches $allBranches
+
 Write-Host "✓ Branch triggers configured:" -ForegroundColor Green
 Write-Host "  - Development: $DEVELOPMENT_BRANCHES" -ForegroundColor Green
 Write-Host "  - Staging: $STAGING_BRANCHES" -ForegroundColor Green
@@ -336,6 +340,7 @@ $jsonDefinition = $jsonTemplate `
     -replace '<REPO_ID>', $REPO_ID `
     -replace '<REPO_NAME>', $REPO_NAME `
     -replace '<DEFAULT_BRANCH>', $DEFAULT_BRANCH `
+    -replace '<ALL_BRANCHES_JSON>', $allBranchesJson `
     -replace '<DEVELOPMENT_BRANCHES_JSON>', $developmentBranchesJson `
     -replace '<STAGING_BRANCHES_JSON>', $stagingBranchesJson `
     -replace '<PRODUCTION_BRANCHES_JSON>', $productionBranchesJson `

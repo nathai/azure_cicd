@@ -47,17 +47,7 @@
   "triggers": [
     {
       "artifactAlias": "_<REPO_NAME>",
-      "triggerConditions": <DEVELOPMENT_BRANCHES_JSON>,
-      "triggerType": 2
-    },
-    {
-      "artifactAlias": "_<REPO_NAME>",
-      "triggerConditions": <STAGING_BRANCHES_JSON>,
-      "triggerType": 2
-    },
-    {
-      "artifactAlias": "_<REPO_NAME>",
-      "triggerConditions": <PRODUCTION_BRANCHES_JSON>,
+      "triggerConditions": <ALL_BRANCHES_JSON>,
       "triggerType": 2
     }
   ],

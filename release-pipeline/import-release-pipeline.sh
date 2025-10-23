@@ -213,6 +213,10 @@ DEVELOPMENT_BRANCHES_JSON=$(branches_to_json "$DEVELOPMENT_BRANCHES")
 STAGING_BRANCHES_JSON=$(branches_to_json "$STAGING_BRANCHES")
 PRODUCTION_BRANCHES_JSON=$(branches_to_json "$PRODUCTION_BRANCHES")
 
+# Combine all branches for the artifact trigger
+ALL_BRANCHES="${DEVELOPMENT_BRANCHES},${STAGING_BRANCHES},${PRODUCTION_BRANCHES}"
+ALL_BRANCHES_JSON=$(branches_to_json "$ALL_BRANCHES")
+
 echo -e "${GREEN}✓ Branch triggers configured:${NC}"
 echo -e "${GREEN}  - Development: ${DEVELOPMENT_BRANCHES}${NC}"
 echo -e "${GREEN}  - Staging: ${STAGING_BRANCHES}${NC}"
@@ -246,6 +250,7 @@ JSON_DEFINITION=$(echo "$JSON_TEMPLATE" | \
   sed "s/<REPO_ID>/$REPO_ID/g" | \
   sed "s/<REPO_NAME>/$REPO_NAME/g" | \
   sed "s/<DEFAULT_BRANCH>/$DEFAULT_BRANCH/g" | \
+  sed "s|<ALL_BRANCHES_JSON>|$ALL_BRANCHES_JSON|g" | \
   sed "s|<DEVELOPMENT_BRANCHES_JSON>|$DEVELOPMENT_BRANCHES_JSON|g" | \
   sed "s|<STAGING_BRANCHES_JSON>|$STAGING_BRANCHES_JSON|g" | \
   sed "s|<PRODUCTION_BRANCHES_JSON>|$PRODUCTION_BRANCHES_JSON|g" | \
