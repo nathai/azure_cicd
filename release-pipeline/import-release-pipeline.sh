@@ -231,6 +231,11 @@ DEVELOPMENT_SCRIPT_ESCAPED=$(echo "$DEVELOPMENT_SCRIPT" | sed 's/\\/\\\\/g' | se
 STAGING_SCRIPT_ESCAPED=$(echo "$STAGING_SCRIPT" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | awk '{printf "%s\\n", $0}' | sed 's/\\n$//')
 PRODUCTION_SCRIPT_ESCAPED=$(echo "$PRODUCTION_SCRIPT" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | awk '{printf "%s\\n", $0}' | sed 's/\\n$//')
 
+# Escape again for sed replacement context (double-escape backslashes and escape &)
+DEVELOPMENT_SCRIPT_FOR_SED=$(printf '%s' "$DEVELOPMENT_SCRIPT_ESCAPED" | sed 's/\\/\\\\/g; s/&/\\&/g')
+STAGING_SCRIPT_FOR_SED=$(printf '%s' "$STAGING_SCRIPT_ESCAPED" | sed 's/\\/\\\\/g; s/&/\\&/g')
+PRODUCTION_SCRIPT_FOR_SED=$(printf '%s' "$PRODUCTION_SCRIPT_ESCAPED" | sed 's/\\/\\\\/g; s/&/\\&/g')
+
 # Replace placeholders
 JSON_DEFINITION=$(echo "$JSON_TEMPLATE" | \
   sed "s/<PIPELINE_NAME>/$PIPELINE_NAME/g" | \
@@ -246,13 +251,13 @@ JSON_DEFINITION=$(echo "$JSON_TEMPLATE" | \
   sed "s|<PRODUCTION_BRANCHES_JSON>|$PRODUCTION_BRANCHES_JSON|g" | \
   sed "s/<DEVELOPMENT_DEPLOYMENT_GROUP_ID>/$DEVELOPMENT_DEPLOYMENT_GROUP_ID/g" | \
   sed "s|<DEVELOPMENT_TAGS>|$DEVELOPMENT_TAGS_JSON|g" | \
-  sed "s|<DEVELOPMENT_SCRIPT>|$DEVELOPMENT_SCRIPT_ESCAPED|g" | \
+  sed "s|<DEVELOPMENT_SCRIPT>|$DEVELOPMENT_SCRIPT_FOR_SED|g" | \
   sed "s/<STAGING_DEPLOYMENT_GROUP_ID>/$STAGING_DEPLOYMENT_GROUP_ID/g" | \
   sed "s|<STAGING_TAGS>|$STAGING_TAGS_JSON|g" | \
-  sed "s|<STAGING_SCRIPT>|$STAGING_SCRIPT_ESCAPED|g" | \
+  sed "s|<STAGING_SCRIPT>|$STAGING_SCRIPT_FOR_SED|g" | \
   sed "s/<PRODUCTION_DEPLOYMENT_GROUP_ID>/$PRODUCTION_DEPLOYMENT_GROUP_ID/g" | \
   sed "s|<PRODUCTION_TAGS>|$PRODUCTION_TAGS_JSON|g" | \
-  sed "s|<PRODUCTION_SCRIPT>|$PRODUCTION_SCRIPT_ESCAPED|g")
+  sed "s|<PRODUCTION_SCRIPT>|$PRODUCTION_SCRIPT_FOR_SED|g")
 
 # Save processed JSON
 echo "$JSON_DEFINITION" > release-definition.processed.json

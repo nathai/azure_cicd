@@ -322,9 +322,9 @@ $stagingTagsJson = '["' + ($STAGING_TAGS -replace ',','","') + '"]'
 $productionTagsJson = '["' + ($PRODUCTION_TAGS -replace ',','","') + '"]'
 
 # Escape scripts for JSON (escape backslashes first, then quotes, then add newlines)
-$developmentScriptEscaped = $DEVELOPMENT_SCRIPT -replace '\\','\\' -replace '"','\"' -replace "`r`n","\n" -replace "`n","\n"
-$stagingScriptEscaped = $STAGING_SCRIPT -replace '\\','\\' -replace '"','\"' -replace "`r`n","\n" -replace "`n","\n"
-$productionScriptEscaped = $PRODUCTION_SCRIPT -replace '\\','\\' -replace '"','\"' -replace "`r`n","\n" -replace "`n","\n"
+$developmentScriptEscaped = $DEVELOPMENT_SCRIPT -replace '\\','\\\\' -replace '"','\"' -replace "`r`n","\n" -replace "`n","\n" -replace '\n$',''
+$stagingScriptEscaped = $STAGING_SCRIPT -replace '\\','\\\\' -replace '"','\"' -replace "`r`n","\n" -replace "`n","\n" -replace '\n$',''
+$productionScriptEscaped = $PRODUCTION_SCRIPT -replace '\\','\\\\' -replace '"','\"' -replace "`r`n","\n" -replace "`n","\n" -replace '\n$',''
 
 # Replace placeholders
 $jsonDefinition = $jsonTemplate `
