@@ -1,817 +1,546 @@
-# Hướng Dẫn Tạo Azure DevOps Release Pipeline
+# Hướng Dẫn Sử Dụng Script Tạo Azure DevOps Release Pipeline
 
-## ⭐ Tính Năng Nổi Bật
+## 🎯 Tổng Quan
 
-- ✅ **URL Parsing**: Paste repository URL → tự động extract organization, project, repo name
-- ✅ **Nhiều Pipelines**: Tạo nhiều pipeline configurations với các file `.env` riêng biệt
-- ✅ **Tên Pipeline Tùy Biến**: Mỗi pipeline có tên riêng, dễ phân biệt
-- ✅ **An Toàn**: File `.env` được git-ignore tự động, không lo lộ PAT token
-- ✅ **Linh Hoạt**: Cấu hình branches và deployment scripts dễ dàng
-- ✅ **Cross-Platform**: Hỗ trợ cả Linux/Mac (Bash) và Windows (PowerShell)
-- ✅ **Tự Động**: Script tự động fetch IDs, convert formats, import pipeline
+Script này giúp bạn tự động tạo Release Pipeline trong Azure DevOps từ file JSON template và file cấu hình `.env`.
 
-## Mục Lục
-1. [Yêu Cầu Hệ Thống](#yêu-cầu-hệ-thống)
-2. [Chuẩn Bị](#chuẩn-bị)
-3. [Các Bước Thực Hiện](#các-bước-thực-hiện)
-4. [Kiểm Tra Kết Quả](#kiểm-tra-kết-quả)
-5. [Xử Lý Lỗi](#xử-lý-lỗi)
+### Cách Hoạt Động:
+1. Bạn chuẩn bị file `.env` với thông tin cấu hình
+2. Script đọc file `.env` và thay thế các giá trị vào JSON template
+3. Script tự động import pipeline vào Azure DevOps
+
+### Điểm Quan Trọng:
+- ✅ **Scripts đã được nhúng sẵn** trong JSON template (file `release-definition.json`)
+- ✅ **File .env CHỈ chứa cấu hình** (không có scripts)
+- ✅ Nếu muốn thay đổi scripts → sửa trực tiếp trong file `release-definition.json`
+- ✅ Hỗ trợ import pipeline vào organization/project khác với source repository
 
 ---
 
-## Yêu Cầu Hệ Thống
+## 📋 Yêu Cầu Hệ Thống
 
-### Đối với Linux/Mac (sử dụng Bash):
+### Linux/Mac (Bash):
 - Bash shell
-- `curl` (kiểm tra: `curl --version`)
-- `jq` (không bắt buộc, nhưng nên có để xem JSON đẹp hơn)
+- `curl`
+- `jq` (optional, để xem JSON đẹp hơn)
 
-### Đối với Windows (sử dụng PowerShell):
+### Windows (PowerShell):
 - PowerShell 5.1 trở lên
-- Kiểm tra phiên bản: `$PSVersionTable.PSVersion`
+- Kiểm tra: `$PSVersionTable.PSVersion`
 
 ---
 
-## Chuẩn Bị
+## 🚀 Các Bước Thực Hiện
 
-### Bước 1: Tạo Personal Access Token (PAT) trong Azure DevOps
+### BƯỚC 1: Tạo Personal Access Token (PAT)
 
-1. Đăng nhập vào Azure DevOps: `https://dev.azure.com/{tên-tổ-chức-của-bạn}`
+1. Đăng nhập vào Azure DevOps: `https://dev.azure.com/{organization}`
 
-2. Nhấp vào biểu tượng User Settings (góc trên bên phải) → **Personal access tokens**
+2. Click vào **User Settings** (góc trên phải) → **Personal access tokens**
 
-3. Nhấn nút **+ New Token**
+3. Nhấn **+ New Token**
 
 4. Cấu hình token:
-   - **Name**: Đặt tên (ví dụ: "Release-Pipeline-Import")
-   - **Organization**: Chọn organization của bạn
-   - **Expiration**: Chọn thời gian hết hạn (khuyến nghị: 30-90 ngày)
-   - **Scopes**: Chọn **Custom defined**, sau đó chọn:
+   - **Name**: Đặt tên (ví dụ: "Pipeline-Import")
+   - **Organization**: Chọn organization
+   - **Expiration**: 30-90 ngày
+   - **Scopes**: Chọn **Custom defined**:
      - ✅ **Build**: Read & execute
-     - ✅ **Code**: Read (nếu cần)
+     - ✅ **Code**: Read
      - ✅ **Project and Team**: Read
      - ✅ **Release**: Read, write, execute & manage
-     - ✅ **Service Connections**: Read, query, & manage
      - ✅ **Deployment Groups**: Manage
 
-5. Nhấn **Create** và **COPY** token ngay (token chỉ hiển thị một lần!)
+5. Nhấn **Create** và **COPY token ngay** (chỉ hiện 1 lần!)
 
-6. Lưu token vào nơi an toàn
+### BƯỚC 2: Tạo Deployment Groups
 
-### Bước 2: Tạo Deployment Groups
+1. Vào project Azure DevOps → **Pipelines** → **Deployment groups**
 
-Bạn cần tạo 3 deployment groups trong Azure DevOps:
+2. Tạo deployment groups (hoặc dùng có sẵn):
+   - Development Deployment Group
+   - Staging Deployment Group
+   - Production Deployment Group
 
-1. Vào project Azure DevOps của bạn
+3. **Lấy ID của deployment groups**:
+   - Click vào deployment group
+   - Xem URL: `.../_settings/agentqueues?poolId=XX&view=...`
+   - Số `XX` chính là **Deployment Group ID**
 
-2. Điều hướng: **Pipelines** → **Deployment groups**
+4. **Ghi chú tags** của servers trong mỗi deployment group
+   - Ví dụ: `["manager"]`, `["web-server","dev"]`
 
-3. Tạo 3 deployment groups:
-   - **Development-Servers** (hoặc tên bạn muốn)
-   - **Staging-Servers**
-   - **Production-Servers**
+### BƯỚC 3: Tạo File Cấu Hình
 
-4. Cài đặt agent trên các server mục tiêu:
-   - Nhấp vào deployment group vừa tạo
-   - Chọn **Register machine**
-   - Thêm **tags** cho mỗi server (ví dụ: `web-server`, `dev`, `staging`, `production`)
-   - Copy và chạy script cài đặt agent trên mỗi server
-
-5. **GHI CHÚ ID** của từng deployment group:
-   - Vào từng deployment group
-   - Xem URL trong trình duyệt: `.../_settings/agentpools?poolId=XX&view=...`
-   - Số `XX` chính là ID cần dùng
-
-### Bước 3: Xác Định Thông Tin Repository
-
-Bạn cần biết:
-- **Tên Organization** (từ URL: `https://dev.azure.com/{TÊN-NÀY}`)
-- **Tên Project chứa Repository** (project có source code)
-- **Tên Repository**
-- **Tên Project chứa Pipeline** (có thể giống hoặc khác project chứa repo)
-
----
-
-## Các Bước Thực Hiện
-
-### BƯỚC 1: Tạo File Cấu Hình (.env)
-
-Solution này cho phép bạn tạo **nhiều pipelines khác nhau** với các file `.env` riêng biệt.
-
-#### Copy template file:
+#### Tạo file .env từ template:
 
 **Linux/Mac:**
 ```bash
 cd release-pipeline
-cp pipelines.env.example pipelines.env
-```
-
-**Windows PowerShell:**
-```powershell
-cd release-pipeline
-Copy-Item pipelines.env.example pipelines.env
-```
-
-#### Tạo nhiều pipelines (Optional):
-
-Bạn có thể tạo nhiều file `.env` cho các pipelines khác nhau. Mỗi file có thể có tên pipeline riêng:
-
-```bash
-# Pipeline cho web application
-cp pipelines.env.example web-app.env
-# Trong file: PIPELINE_NAME="WebApp Release Pipeline"
-
-# Pipeline cho API service
-cp pipelines.env.example api-service.env
-# Trong file: PIPELINE_NAME="API Service Release"
-
-# Pipeline cho mobile backend
-cp pipelines.env.example mobile-backend.env
-# Trong file: PIPELINE_NAME="Mobile Backend Deployment"
-```
-
-**Lợi ích:** Mỗi pipeline sẽ có tên riêng trong Azure DevOps, dễ phân biệt và quản lý.
-
-### BƯỚC 2: Chỉnh Sửa File Cấu Hình
-
-**Linux/Mac:**
-```bash
-nano pipelines.env
-# Hoặc dùng editor bạn thích: vim, code, gedit...
+cp pipelines.env.example my-pipeline.env
 ```
 
 **Windows:**
 ```powershell
-notepad pipelines.env
-# Hoặc dùng: code pipelines.env
+cd release-pipeline
+Copy-Item pipelines.env.example my-pipeline.env
 ```
 
-### BƯỚC 3: Điền Thông Tin Cấu Hình
+#### Chỉnh sửa file:
 
-Có **2 cách** để cấu hình:
+**Linux/Mac:**
+```bash
+nano my-pipeline.env
+# hoặc: vim, code, gedit...
+```
 
-#### 🎯 CÁCH 1: Sử dụng Repository URL (Đơn Giản - Khuyến Nghị)
+**Windows:**
+```powershell
+notepad my-pipeline.env
+# hoặc: code my-pipeline.env
+```
 
-Chỉ cần paste URL của repository Azure DevOps:
+### BƯỚC 4: Điền Thông Tin Cấu Hình
+
+File `.env` có cấu trúc như sau:
 
 ```bash
-# Personal Access Token
+# ==========================================
+# 1. AZURE DEVOPS PAT TOKEN
+# ==========================================
 AZURE_DEVOPS_PAT="your-pat-token-here"
 
-# Repository URL - Script sẽ TỰ ĐỘNG extract organization, project, repo name
-REPO_URL="https://dev.azure.com/contoso/MyWebApp/_git/webapp-repo"
-
-# Tên pipeline (tùy chọn)
-PIPELINE_NAME="WebApp Release Pipeline"
-```
-
-**Lợi ích:**
-- ✅ Chỉ cần copy/paste URL từ trình duyệt
-- ✅ Không lo sai tên organization, project, hoặc repository
-- ✅ Nhanh và ít lỗi hơn
-
-**Lấy URL ở đâu?**
-1. Vào Azure DevOps → Repos → Files
-2. Copy URL trên thanh địa chỉ trình duyệt
-3. URL có dạng: `https://dev.azure.com/{org}/{project}/_git/{repo}`
-
-#### 📝 CÁCH 2: Điền Thủ Công (Nếu không dùng REPO_URL)
-
-Điền từng thông tin riêng lẻ:
-
-```bash
 # ==========================================
-# PHẦN 1: Thông Tin Azure DevOps
+# 2. REPOSITORY URL
 # ==========================================
-
-# Personal Access Token (đã tạo ở bước chuẩn bị)
-AZURE_DEVOPS_PAT="token-cua-ban-o-day"
+# URL repository chứa source code
+# Script sẽ tự động extract: organization, project, repo name
+REPO_URL="https://dev.azure.com/EngineeringandAnalytics/TradingCockpit/_git/RenewableControlsPlatform"
 
 # ==========================================
-# PHẦN 2: Thông Tin Repository và Pipeline
+# 3. PIPELINE INFORMATION
 # ==========================================
+# Organization và project nơi pipeline sẽ được tạo
+# Có thể khác với organization/project của repository
+PIPELINE_ORGANIZATION_NAME="EngineeringandAnalytics"
+PIPELINE_PROJECT_NAME="TradingCockpit"
 
-# Để trống REPO_URL nếu muốn điền thủ công
-REPO_URL=""
+# Đường dẫn folder chứa pipeline trong Azure DevOps
+PIPELINE_PATH="docker-swarm"
 
-# Tên pipeline sẽ hiển thị trong Azure DevOps
-PIPELINE_NAME="Multi-Stage Auto Release"
-
-# Tên organization (từ URL: https://dev.azure.com/TEN-NAY)
-ORGANIZATION_NAME="ten-organization-cua-ban"
-
-# Tên project chứa repository (source code)
-REPO_PROJECT_NAME="ProjectChuaSourceCode"
-
-# Tên repository
-REPO_NAME="ten-repository"
-
-# Branch mặc định
-DEFAULT_BRANCH="main"  # hoặc "master"
-
-# Tên project chứa pipeline (nơi lưu release pipeline)
-# Để trống nếu muốn dùng cùng project với repository
-PIPELINE_PROJECT_NAME=""
-# Hoặc điền nếu muốn lưu ở project khác:
-# PIPELINE_PROJECT_NAME="ProjectChuaPipeline"
+# Tên pipeline
+PIPELINE_NAME="DSW- Market Position API"
 
 # ==========================================
-# PHẦN 3: Deployment Groups
+# 4. PIPELINE TRIGGER BRANCHES
 # ==========================================
-
-# Development Environment
-DEVELOPMENT_DEPLOYMENT_GROUP_ID="1"  # Thay bằng ID thực tế
-DEVELOPMENT_TAGS="web-server,dev"    # Tags để filter server
-
-# Staging Environment
-STAGING_DEPLOYMENT_GROUP_ID="2"      # Thay bằng ID thực tế
-STAGING_TAGS="web-server,staging"    # Tags để filter server
-
-# Production Environment
-PRODUCTION_DEPLOYMENT_GROUP_ID="3"   # Thay bằng ID thực tế
-PRODUCTION_TAGS="web-server,production"  # Tags để filter server
+# Các branches sẽ trigger tạo release (cách nhau bởi dấu phẩy)
+PIPELINE_TRIGGER_BRANCHES="master,test-cicd"
 
 # ==========================================
-# PHẦN 4: Cấu Hình Branch Triggers
+# 5. PIPELINE VARIABLES
 # ==========================================
+# Variables chung cho toàn bộ pipeline (format: key=value, mỗi dòng 1 cặp)
+PIPELINE_VARIABLES="dockerfile_name=MarketPositionAPI/Dockerfile
+image_name=marketpositionapi_market-position-api
+repo_name=RenewableControlsPlatform
+stack_name=MarketPositionAPI
+stack_yaml=stack.yml
+tag=latest
+working_folder=_\$(repo_name)/MarketPositionAPI"
 
-# Branch mặc định cho manual releases
-DEFAULT_BRANCH="main"
+# ==========================================
+# 6. DEFAULT BRANCH
+# ==========================================
+DEFAULT_BRANCH="master"
 
-# Development Stage - kích hoạt bởi các branches sau
-DEVELOPMENT_BRANCHES="dev1,dev2"
+# ==========================================
+# 7. DEVELOPMENT ENVIRONMENT
+# ==========================================
+DEVELOPMENT_DEPLOYMENT_GROUP_ID="270"
+DEVELOPMENT_TAGS="manager"
+DEVELOPMENT_BRANCHES="test-cicd"
+DEVELOPMENT_VARIABLES="acr_name=gbcrswarmdne01
+stack_folder=/mount/nfs-shared-storage01/stacks/RenewableControlsPlatform/MarketPositionAPI"
 
-# Staging Stage - kích hoạt bởi branch
+# ==========================================
+# 8. STAGING ENVIRONMENT
+# ==========================================
+STAGING_DEPLOYMENT_GROUP_ID="270"
+STAGING_TAGS="manager"
 STAGING_BRANCHES="stage"
-
-# Production Stage - kích hoạt bởi branch
-PRODUCTION_BRANCHES="prod"
+STAGING_VARIABLES="acr_name=gbcrswarmsne01"
 
 # ==========================================
-# PHẦN 5: Deployment Scripts
+# 9. PRODUCTION ENVIRONMENT
 # ==========================================
-
-# Development Stage Script
-DEVELOPMENT_SCRIPT='#!/bin/bash
-echo "=========================================="
-echo "Starting Deployment to Development"
-echo "=========================================="
-echo "Server: $(hostname)"
-echo "User: $(whoami)"
-echo "Working directory: $(pwd)"
-echo "Artifact location: $(System.DefaultWorkingDirectory)"
-echo ""
-
-# Thêm lệnh deployment của bạn ở đây
-# Ví dụ:
-# sudo systemctl stop myapp-dev
-# sudo cp -r $(System.DefaultWorkingDirectory)/_MyApp/drop/* /var/www/dev/
-# sudo chown -R www-data:www-data /var/www/dev/
-# sudo systemctl start myapp-dev
-
-echo "Deployment to Development completed successfully!"
-echo "=========================================="'
-
-# Staging Stage Script
-STAGING_SCRIPT='#!/bin/bash
-echo "=========================================="
-echo "Starting Deployment to Staging"
-echo "=========================================="
-# ... Lệnh deployment cho Staging ...
-echo "=========================================="'
-
-# Production Stage Script
-PRODUCTION_SCRIPT='#!/bin/bash
-echo "=========================================="
-echo "Starting Deployment to Production"
-echo "=========================================="
-# ... Lệnh deployment cho Production ...
-echo "=========================================="'
+PRODUCTION_DEPLOYMENT_GROUP_ID="270"
+PRODUCTION_TAGS="manager"
+PRODUCTION_BRANCHES="master"
+PRODUCTION_VARIABLES="acr_name=gbcrswarmpne01"
 ```
 
-#### ✨ Ví Dụ Cấu Hình Thực Tế
+#### ⚠️ Giải Thích Các Trường Quan Trọng:
 
-**Ví dụ 1 - Sử dụng REPO_URL (Đơn giản):**
-```bash
-# PAT Token
-AZURE_DEVOPS_PAT="abcd1234efgh5678ijkl9012mnop3456qrst7890uvwx"
+**REPO_URL:**
+- URL của repository chứa source code
+- Script tự động extract: `REPO_ORGANIZATION_NAME`, `REPO_PROJECT_NAME`, `REPO_NAME`
+- Lấy từ: Azure DevOps → Repos → Copy URL từ thanh địa chỉ
 
-# Repository URL - Tự động extract org, project, repo
-REPO_URL="https://dev.azure.com/contoso/MyWebApp/_git/webapp-repo"
+**PIPELINE_ORGANIZATION_NAME và PIPELINE_PROJECT_NAME:**
+- Organization và project nơi pipeline sẽ được TẠO
+- Có thể KHÁC với organization/project của repository
+- Cho phép import pipeline từ repo ở org này sang tạo pipeline ở org khác
 
-# Pipeline name
-PIPELINE_NAME="WebApp Production Release"
+**PIPELINE_PATH:**
+- Đường dẫn folder trong Azure DevOps nơi pipeline sẽ được lưu
+- Ví dụ: `"docker-swarm"` → pipeline sẽ nằm trong folder `\docker-swarm`
+- Để trống `""` nếu muốn lưu ở root
 
-# Pipeline project (nếu khác với repo project)
-PIPELINE_PROJECT_NAME="DevOps-Pipelines"
+**PIPELINE_TRIGGER_BRANCHES:**
+- Danh sách branches (cách nhau bởi dấu phẩy) sẽ trigger TẠO RELEASE mới
+- Ví dụ: `"master,test-cicd"` → push vào 2 branches này sẽ tạo release
 
-# Deployment groups (xem phần Deployment Groups bên dưới)
-DEVELOPMENT_DEPLOYMENT_GROUP_ID="12"
-DEVELOPMENT_TAGS="web-server,dev,frontend"
-# ... các config khác ...
-```
+**DEVELOPMENT_BRANCHES, STAGING_BRANCHES, PRODUCTION_BRANCHES:**
+- Danh sách branches (cách nhau bởi dấu phẩy) sẽ trigger DEPLOY vào stage tương ứng
+- Ví dụ: `DEVELOPMENT_BRANCHES="test-cicd"` → chỉ release từ branch `test-cicd` mới deploy vào Development
 
-**Ví dụ 2 - Điền thủ công:**
-```bash
-# PAT Token
-AZURE_DEVOPS_PAT="abcd1234efgh5678ijkl9012mnop3456qrst7890uvwx"
+**PIPELINE_VARIABLES:**
+- Variables chung cho toàn bộ pipeline
+- Format: `key=value` (mỗi dòng 1 cặp)
+- Dùng trong tất cả các stages
 
-# Để trống REPO_URL
-REPO_URL=""
+**DEVELOPMENT_VARIABLES, STAGING_VARIABLES, PRODUCTION_VARIABLES:**
+- Variables riêng cho từng environment
+- Format giống `PIPELINE_VARIABLES`
+- Override pipeline variables nếu trùng tên
 
-# Điền thủ công
-ORGANIZATION_NAME="contoso"
-REPO_PROJECT_NAME="MyWebApp"
-REPO_NAME="webapp-repo"
-PIPELINE_NAME="WebApp Production Release"
-DEFAULT_BRANCH="main"
-PIPELINE_PROJECT_NAME="DevOps-Pipelines"  # Pipeline lưu ở project khác
+**Tags:**
+- Danh sách tags (cách nhau bởi dấu phẩy, KHÔNG có khoảng trắng)
+- Ví dụ: `"manager"` hoặc `"web-server,dev"`
+- Server phải có ĐỦ TẤT CẢ tags này thì mới được deploy
 
-DEVELOPMENT_DEPLOYMENT_GROUP_ID="12"
-DEVELOPMENT_TAGS="web-server,dev,frontend"
+### BƯỚC 5: Lưu File Cấu Hình
 
-STAGING_DEPLOYMENT_GROUP_ID="15"
-STAGING_TAGS="web-server,staging,frontend"
+- `nano`: Nhấn `Ctrl+O` → `Ctrl+X`
+- `notepad`: Nhấn `Ctrl+S`
+- `vim`: Nhấn `Esc` → `:wq` → `Enter`
 
-PRODUCTION_DEPLOYMENT_GROUP_ID="18"
-PRODUCTION_TAGS="web-server,production,frontend"
+### BƯỚC 6: Chạy Script Import
 
-# Branch triggers
-DEVELOPMENT_BRANCHES="dev1,dev2,develop"
-STAGING_BRANCHES="stage,staging"
-PRODUCTION_BRANCHES="prod,main"
-
-# Deployment scripts - sử dụng scripts mặc định hoặc tùy chỉnh
-```
-
-**LƯU Ý về Tags:**
-- Các tags cách nhau bởi dấu phẩy (không có khoảng trắng)
-- Tags phải khớp với tags đã gán cho servers trong deployment group
-- Pipeline chỉ chạy trên servers có **TẤT CẢ** các tags được chỉ định
-
-**LƯU Ý về Branches:**
-- Các branches cách nhau bởi dấu phẩy (không có khoảng trắng)
-- Khi code được push/merge vào một trong các branches này, pipeline sẽ tự động trigger stage tương ứng
-- Ví dụ: Push vào `dev1` hoặc `dev2` → Deploy tự động vào Development stage
-- Bạn có thể thêm nhiều branches cho mỗi stage: `"dev1,dev2,dev3,develop"`
-
-**LƯU Ý về Deployment Scripts:**
-- Scripts được viết bằng Bash shell script
-- Sử dụng single quotes `'...'` để bọc multiline scripts
-- Có thể sử dụng các biến Azure DevOps như `$(System.DefaultWorkingDirectory)`, `$(Build.SourceBranch)`, etc.
-- Scripts mặc định chỉ echo thông tin - bạn cần thêm lệnh deployment thực tế
-- Ví dụ lệnh deployment: stop service, copy files, restart service, run migrations, etc.
-
-### BƯỚC 4: Lưu File Cấu Hình
-
-- Trong `nano`: Nhấn `Ctrl+O` để lưu, `Ctrl+X` để thoát
-- Trong `notepad`: Nhấn `Ctrl+S` để lưu
-- Trong `vim`: Nhấn `Esc`, gõ `:wq`, nhấn `Enter`
-
-### BƯỚC 5: Chạy Script Import
-
-#### Với Linux/Mac:
+#### Linux/Mac (Bash):
 
 ```bash
-# Cấp quyền thực thi cho script (chỉ cần làm 1 lần)
+# Di chuyển vào thư mục
+cd release-pipeline
+
+# Cấp quyền thực thi (chỉ cần làm 1 lần)
 chmod +x import-release-pipeline.sh
 
 # Chạy script với file .env mặc định (pipelines.env)
 ./import-release-pipeline.sh
 
-# HOẶC chỉ định file .env cụ thể
-./import-release-pipeline.sh web-app.env
-./import-release-pipeline.sh api-service.env
+# Hoặc chỉ định file .env cụ thể
+./import-release-pipeline.sh my-pipeline.env
 
-# Xem hướng dẫn sử dụng
+# Xem hướng dẫn
 ./import-release-pipeline.sh --help
 ```
 
-#### Với Windows PowerShell:
+#### Windows (PowerShell):
 
 ```powershell
-# Có thể cần cho phép chạy script (chỉ cần làm 1 lần)
+# Di chuyển vào thư mục
+cd release-pipeline
+
+# Cho phép chạy script (nếu cần)
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 
 # Chạy script với file .env mặc định (pipelines.env)
 .\import-release-pipeline.ps1
 
-# HOẶC chỉ định file .env cụ thể
-.\import-release-pipeline.ps1 -EnvFile web-app.env
-.\import-release-pipeline.ps1 -EnvFile api-service.env
+# Hoặc chỉ định file .env cụ thể
+.\import-release-pipeline.ps1 -EnvFile my-pipeline.env
 
-# Xem hướng dẫn sử dụng
+# Xem hướng dẫn
 .\import-release-pipeline.ps1 -Help
 ```
 
-#### Ví Dụ Workflow Nhiều Pipelines:
+### BƯỚC 7: Đợi Script Hoàn Thành
 
-```bash
-# Tạo và cấu hình 3 pipelines khác nhau
-cp pipelines.env.example web-frontend.env
-cp pipelines.env.example api-backend.env
-cp pipelines.env.example mobile-api.env
+Script sẽ thực hiện:
 
-# Chỉnh sửa từng file với thông tin riêng
-nano web-frontend.env   # Cấu hình cho web
-nano api-backend.env    # Cấu hình cho API
-nano mobile-api.env     # Cấu hình cho mobile
-
-# Import lần lượt từng pipeline
-./import-release-pipeline.sh web-frontend.env
-./import-release-pipeline.sh api-backend.env
-./import-release-pipeline.sh mobile-api.env
-```
-
-### BƯỚC 6: Đợi Script Hoàn Thành
-
-Script sẽ thực hiện các bước sau:
-
-1. ✅ Kiểm tra file cấu hình
-2. ✅ Kết nối Azure DevOps
-3. ✅ Lấy Project ID (cả repo project và pipeline project nếu khác nhau)
-4. ✅ Lấy Repository ID
-5. ✅ Tạo JSON definition
-6. ✅ Import pipeline vào Azure DevOps
+1. ✅ Đọc file cấu hình
+2. ✅ Parse REPO_URL → extract organization, project, repo name
+3. ✅ Kết nối Azure DevOps với PAT token
+4. ✅ Lấy Repository Project ID
+5. ✅ Lấy Pipeline Project ID (nếu khác với repo project)
+6. ✅ Lấy Repository ID
+7. ✅ Kiểm tra Deployment Groups
+8. ✅ Chuẩn bị release definition (thay thế placeholders)
+9. ✅ Import pipeline vào Azure DevOps
 
 **Kết quả thành công:**
 ```
-========================================
-✅ Import thành công!
-========================================
-Pipeline Name: Multi-Stage Auto Release
-Pipeline ID: 42
-Pipeline URL: https://dev.azure.com/{org}/{project}/_release?definitionId=42
+=====================================
+✓ Success!
+=====================================
+Release Pipeline ID: 12
+Pipeline Name: DSW- Market Position API
+
+Pipeline Details:
+  - Created in: EngineeringandAnalytics/TradingCockpit
+  - Source repo: EngineeringandAnalytics/TradingCockpit/RenewableControlsPlatform
+
+View your pipeline at:
+https://dev.azure.com/EngineeringandAnalytics/TradingCockpit/_release?definitionId=12
 ```
 
 ---
 
-## Kiểm Tra Kết Quả
+## ✅ Kiểm Tra Kết Quả
 
-### Bước 1: Truy Cập Azure DevOps
+### 1. Truy cập Azure DevOps
 
-1. Mở trình duyệt và truy cập:
-   ```
-   https://dev.azure.com/{organization-name}/{pipeline-project-name}
-   ```
+Mở link được cung cấp hoặc:
+1. Vào `https://dev.azure.com/{PIPELINE_ORGANIZATION_NAME}/{PIPELINE_PROJECT_NAME}`
+2. Chọn **Pipelines** → **Releases**
+3. Tìm pipeline với tên bạn đã đặt
 
-2. Vào **Pipelines** → **Releases**
+### 2. Kiểm tra Pipeline
 
-3. Bạn sẽ thấy pipeline mới: **Multi-Stage Auto Release**
+Click vào pipeline → **Edit** → Kiểm tra:
 
-### Bước 2: Kiểm Tra Cấu Hình Pipeline
+**Artifacts:**
+- ✅ Source type: Azure Repos Git
+- ✅ Repository đúng
+- ✅ Default branch đúng
 
-1. Nhấp vào pipeline name → **Edit**
+**Triggers:**
+- ✅ Continuous deployment trigger: Enabled
+- ✅ Branch filters: Các branches trong `PIPELINE_TRIGGER_BRANCHES`
 
-2. Kiểm tra các phần:
+**Stages:**
+- ✅ Development, Staging, Production
+- ✅ Owner: Thai Nguyen (thai.nguyen@gridbeyond.com) - từ JSON template
+- ✅ Deployment groups và tags đúng
+- ✅ Variables đúng
+- ✅ Branch conditions đúng
 
-   **Artifacts:**
-   - ✅ Source type: Azure Repos Git
-   - ✅ Project: {repo-project-name}
-   - ✅ Repository: {repo-name}
-   - ✅ Default branch: {branch-name}
+**Tasks/Scripts:**
+- ✅ Scripts được giữ nguyên từ JSON template gốc
+- ✅ Tất cả tasks (Build and push image, Deploy stack, Reload Nginx...) đều như pipeline gốc
 
-   **Continuous Deployment Trigger:**
-   - ✅ Enabled
-   - ✅ Build branch filters (theo cấu hình của bạn):
-     - Branches trong `DEVELOPMENT_BRANCHES` → Development stage
-     - Branches trong `STAGING_BRANCHES` → Staging stage
-     - Branches trong `PRODUCTION_BRANCHES` → Production stage
-
-   **Stages:**
-   - ✅ Development → Staging → Production
-   - ✅ Mỗi stage có deployment group đúng
-   - ✅ Tags được cấu hình đúng
-
-### Bước 3: Test Pipeline
+### 3. Test Pipeline
 
 #### Test thủ công:
 1. Nhấn **Create release**
-2. Chọn artifact version
-3. Chọn stages muốn deploy
-4. Nhấn **Create**
-5. Theo dõi quá trình deployment
+2. Chọn artifacts và stages
+3. **Create** → Theo dõi deployment
 
-#### Test tự động (auto-trigger):
-1. Commit code vào một trong các branches trong `DEVELOPMENT_BRANCHES` (mặc định: `dev1` hoặc `dev2`)
-2. Pipeline tự động trigger stage Development
-3. Commit vào branch trong `STAGING_BRANCHES` (mặc định: `stage`) → trigger Staging
-4. Commit vào branch trong `PRODUCTION_BRANCHES` (mặc định: `prod`) → trigger Production
-
-**Lưu ý:** Branches trigger được cấu hình trong file config của bạn!
+#### Test tự động:
+1. Push code vào branch trong `PIPELINE_TRIGGER_BRANCHES` → tạo release tự động
+2. Push vào branch trong `DEVELOPMENT_BRANCHES` → deploy vào Development
+3. Push vào branch trong `STAGING_BRANCHES` → deploy vào Staging
+4. Push vào branch trong `PRODUCTION_BRANCHES` → deploy vào Production
 
 ---
 
-## Xử Lý Lỗi
+## 🔧 Tùy Chỉnh Scripts
+
+### ⚠️ Scripts Được Lưu Ở Đâu?
+
+Scripts **KHÔNG còn** trong file `.env` nữa. Scripts được nhúng trực tiếp trong file `release-definition.json`.
+
+### Cách Thay Đổi Scripts:
+
+#### Phương Án 1: Sửa file `release-definition.json` (Khuyến nghị)
+
+File này là template JSON, chứa toàn bộ cấu trúc pipeline bao gồm scripts.
+
+1. Mở file:
+   ```bash
+   # Linux/Mac
+   nano release-pipeline/release-definition.json
+
+   # Windows
+   notepad release-pipeline\release-definition.json
+   ```
+
+2. Tìm phần `"workflowTasks"` trong mỗi environment
+
+3. Sửa trường `"script"` trong `"inputs"`
+
+4. Lưu file
+
+5. Chạy lại import script:
+   ```bash
+   ./import-release-pipeline.sh my-pipeline.env
+   ```
+
+**Ví dụ script trong JSON:**
+```json
+{
+  "inputs": {
+    "script": "echo \"Server: $(hostname)\"\n\necho \"User: $(whoami)\"\n\ncd $(stack_folder)\ndocker stack deploy -c $(stack_yaml) $(stack_name)",
+    "workingDirectory": "$(stack_folder)",
+    "failOnStderr": "false"
+  }
+}
+```
+
+#### Phương Án 2: Sửa trực tiếp trong Azure DevOps
+
+1. Vào pipeline → **Edit**
+2. Click vào stage (Development, Staging, Production)
+3. Click vào task muốn sửa
+4. Sửa trường **Script**
+5. **Save**
+
+**Lưu ý:** Nếu chạy lại import script, thay đổi này sẽ BỊ GHI ĐÈ.
+
+### Ví Dụ Scripts Deployment:
+
+**Docker Swarm Deployment:**
+```bash
+echo "Server: $(hostname)"
+echo "User: $(whoami)"
+
+cd $(stack_folder)
+echo "Working directory: $(pwd)"
+
+# Remove old stack
+docker stack rm $(stack_name)
+sleep 5
+
+# Deploy new stack
+docker stack deploy -c $(stack_yaml) $(stack_name) --with-registry-auth
+
+echo "Deployment completed!"
+```
+
+**Node.js Application:**
+```bash
+echo "Deploying Node.js app..."
+
+# Stop application
+pm2 stop myapp
+
+# Backup
+cp -r /var/www/app /var/www/app.backup.$(date +%Y%m%d)
+
+# Copy new files
+cp -r $(System.DefaultWorkingDirectory)/_MyApp/drop/* /var/www/app/
+
+# Install dependencies
+cd /var/www/app
+npm install --production
+
+# Start application
+pm2 start app.js --name myapp
+
+echo "Deployment completed!"
+```
+
+---
+
+## ❌ Xử Lý Lỗi
 
 ### Lỗi 1: "Authentication failed"
 
-**Nguyên nhân:** PAT token không hợp lệ hoặc hết hạn
+**Nguyên nhân:** PAT token không hợp lệ
 
 **Giải pháp:**
-1. Kiểm tra PAT token trong file config
-2. Tạo token mới nếu cần
-3. Đảm bảo token có đủ quyền (Release: Read, write, execute & manage)
+- Kiểm tra `AZURE_DEVOPS_PAT` trong file .env
+- Tạo token mới với đủ quyền
+- Đảm bảo token chưa hết hạn
 
 ### Lỗi 2: "Project not found"
 
-**Nguyên nhân:** Tên project hoặc repository không đúng
+**Nguyên nhân:** Tên project sai
 
 **Giải pháp:**
-1. Kiểm tra lại `REPO_PROJECT_NAME` và `PIPELINE_PROJECT_NAME`
-2. Tên phải khớp CHÍNH XÁC với tên trong Azure DevOps (có phân biệt chữ hoa/thường)
-3. Vào Azure DevOps, copy chính xác tên project
+- Kiểm tra `REPO_URL` đúng format
+- Kiểm tra `PIPELINE_ORGANIZATION_NAME` và `PIPELINE_PROJECT_NAME` khớp với Azure DevOps
+- Tên có phân biệt chữ hoa/thường
 
 ### Lỗi 3: "Repository not found"
 
-**Nguyên nhân:** Tên repository không đúng
+**Nguyên nhân:** Repository không tồn tại hoặc không có quyền truy cập
 
 **Giải pháp:**
-1. Vào Azure DevOps → Repos
-2. Copy chính xác tên repository
-3. Cập nhật `REPO_NAME` trong file config
+- Kiểm tra `REPO_URL` chính xác
+- Đảm bảo PAT token có quyền **Code: Read**
+- Kiểm tra repository có tồn tại trong project
 
 ### Lỗi 4: "Deployment group not found"
 
-**Nguyên nhân:** Deployment Group ID không đúng
+**Nguyên nhân:** Deployment Group ID sai
 
 **Giải pháp:**
 1. Vào Azure DevOps → Pipelines → Deployment groups
 2. Click vào deployment group
 3. Xem URL: `...?poolId=XX`
-4. Số `XX` là ID đúng
+4. Dùng số `XX` làm ID
 
-### Lỗi 5: Script không chạy trên PowerShell
+### Lỗi 5: "Invalid JSON"
 
-**Nguyên nhân:** Execution policy chặn script
-
-**Giải pháp:**
-```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-```
-
-### Lỗi 6: "No targets found matching the tags"
-
-**Nguyên nhân:** Không có server nào trong deployment group có đủ tags được chỉ định
+**Nguyên nhân:** Lỗi format khi thay thế placeholders
 
 **Giải pháp:**
-1. Vào Deployment Groups
-2. Kiểm tra tags của các servers
-3. Đảm bảo servers có **TẤT CẢ** tags được liệt kê trong config
-4. Ví dụ: Nếu config có `"web-server,dev"` thì server phải có CẢ 2 tags này
+- Kiểm tra file `.env` không có ký tự đặc biệt lạ
+- Kiểm tra variables không có dấu ngoặc kép hoặc dấu \ không escape đúng
+- Xem file `release-definition.processed.json` để debug
 
-### Lỗi 7: Pipeline import thành công nhưng không trigger tự động
+### Lỗi 6: Pipeline import thành công nhưng không trigger
 
-**Nguyên nhân:** Branch filter chưa đúng hoặc continuous deployment trigger chưa bật
+**Nguyên nhân:** Branch filter chưa đúng
 
 **Giải pháp:**
 1. Vào pipeline → Edit
-2. Click vào lightning icon trên artifact
+2. Click icon lightning trên artifact
 3. Kiểm tra **Continuous deployment trigger** = Enabled
-4. Kiểm tra **Build branch filters** có đúng các branch theo config của bạn:
-   - Development: branches trong `DEVELOPMENT_BRANCHES`
-   - Staging: branches trong `STAGING_BRANCHES`
-   - Production: branches trong `PRODUCTION_BRANCHES`
-5. Đảm bảo bạn đang push code vào đúng branch name (có phân biệt hoa/thường)
+4. Kiểm tra **Build branch filters** có đúng branches
+5. Push code vào đúng branch name (phân biệt hoa/thường)
 
 ---
 
-## Tùy Chỉnh Deployment Scripts
-
-Mặc định, pipeline chạy scripts đơn giản để echo thông báo. Để thay đổi logic deployment:
-
-### Phương Án 1: Sửa Trong File Config (Khuyến Nghị)
-
-Đây là cách dễ nhất và được khuyến nghị.
-
-#### Bước 1: Mở file config
-
-**Linux/Mac:**
-```bash
-nano config.local.sh
-# hoặc
-code config.local.sh
-```
-
-**Windows:**
-```powershell
-notepad config.local.ps1
-# hoặc
-code config.local.ps1
-```
-
-#### Bước 2: Tìm và sửa deployment scripts
-
-Tìm các biến `DEVELOPMENT_SCRIPT`, `STAGING_SCRIPT`, `PRODUCTION_SCRIPT` và thay đổi nội dung:
-
-**Ví dụ cho Development - Deployment ứng dụng Node.js:**
-
-```bash
-DEVELOPMENT_SCRIPT='#!/bin/bash
-echo "=========================================="
-echo "Starting Deployment to Development"
-echo "=========================================="
-echo "Server: $(hostname)"
-echo "Date: $(date)"
-echo ""
-
-# Dừng ứng dụng
-echo "Stopping application..."
-pm2 stop myapp-dev
-
-# Backup version hiện tại
-echo "Creating backup..."
-sudo cp -r /var/www/dev /var/www/dev.backup.$(date +%Y%m%d_%H%M%S)
-
-# Copy files mới từ artifact
-echo "Copying new files..."
-sudo cp -r $(System.DefaultWorkingDirectory)/_MyWebApp/drop/* /var/www/dev/
-
-# Set permissions
-echo "Setting permissions..."
-sudo chown -R www-data:www-data /var/www/dev/
-
-# Cài đặt dependencies
-echo "Installing dependencies..."
-cd /var/www/dev
-npm install --production
-
-# Chạy migrations
-echo "Running database migrations..."
-npm run migrate
-
-# Khởi động lại ứng dụng
-echo "Starting application..."
-pm2 start /var/www/dev/app.js --name myapp-dev
-
-echo "Deployment to Development completed successfully!"
-echo "=========================================="'
-```
-
-**Ví dụ cho Production - Deployment ứng dụng Python/Django:**
-
-```bash
-PRODUCTION_SCRIPT='#!/bin/bash
-set -e  # Exit on error
-
-echo "=========================================="
-echo "Starting Deployment to Production"
-echo "=========================================="
-echo "Server: $(hostname)"
-echo "Date: $(date)"
-echo ""
-
-# Kích hoạt virtual environment
-source /var/www/production/venv/bin/activate
-
-# Dừng service
-echo "Stopping service..."
-sudo systemctl stop myapp
-
-# Backup
-echo "Creating backup..."
-sudo tar -czf /var/backups/myapp-$(date +%Y%m%d_%H%M%S).tar.gz /var/www/production/
-
-# Copy files mới
-echo "Deploying new version..."
-sudo cp -r $(System.DefaultWorkingDirectory)/_MyApp/drop/* /var/www/production/
-
-# Install dependencies
-echo "Installing dependencies..."
-cd /var/www/production
-pip install -r requirements.txt
-
-# Collect static files
-echo "Collecting static files..."
-python manage.py collectstatic --noinput
-
-# Run migrations
-echo "Running migrations..."
-python manage.py migrate
-
-# Restart service
-echo "Starting service..."
-sudo systemctl start myapp
-
-# Health check
-echo "Running health check..."
-sleep 5
-curl -f http://localhost:8000/health || exit 1
-
-echo "Production deployment completed successfully!"
-echo "=========================================="'
-```
-
-#### Bước 3: Lưu file và chạy lại import script
-
-```bash
-# Linux/Mac
-./import-release-pipeline.sh
-
-# Windows PowerShell
-.\import-release-pipeline.ps1
-```
-
-Script sẽ tạo lại pipeline với deployment scripts mới.
-
-### Phương Án 2: Sửa Trực Tiếp Trong Azure DevOps
-
-Sau khi import pipeline, bạn có thể sửa scripts trực tiếp trong Azure DevOps:
-
-1. Vào Azure DevOps → Pipelines → Releases
-2. Chọn pipeline **Multi-Stage Auto Release**
-3. Click **Edit**
-4. Click vào stage muốn sửa (ví dụ: Development)
-5. Click vào task **Deploy to Development**
-6. Sửa nội dung trong field **Script**
-7. Click **Save**
-
-**Lưu ý:** Nếu bạn chạy lại import script, những thay đổi này sẽ bị ghi đè.
-
----
-
-## Lưu Ý Bảo Mật
+## 🔒 Lưu Ý Bảo Mật
 
 1. **KHÔNG commit file `.env` lên Git**
-   - Tất cả `*.env` files đã được thêm vào `.gitignore` tự động
-   - Chỉ commit file `*.env.example` (template không có giá trị thực)
-   - Kiểm tra trước khi commit: `git status` (không thấy file `.env` là đúng)
+   - File `*.env` đã được git-ignore tự động
+   - Chỉ commit file `.env.example` (template)
 
 2. **PAT Token:**
-   - Lưu token ở nơi an toàn (password manager, Azure Key Vault)
-   - Đặt thời gian hết hạn phù hợp (khuyến nghị: 30-90 ngày)
-   - Không chia sẻ token với người khác
-   - Xóa token khỏi Azure DevOps khi không dùng nữa
-   - Nếu token bị lộ: Xóa ngay và tạo token mới
+   - Lưu token an toàn (password manager, Azure Key Vault)
+   - Đặt thời gian hết hạn phù hợp (30-90 ngày)
+   - Không chia sẻ token
+   - Xóa token khi không dùng
 
 3. **Deployment Scripts:**
-   - Không hardcode passwords/secrets trong scripts
-   - Sử dụng Azure Key Vault hoặc Variable Groups để lưu secrets
-   - Sử dụng service connections cho authentication với external services
-   - Sử dụng Managed Identities khi có thể
-
-4. **File `.env` Management:**
-   - Mỗi developer có file `.env` riêng với PAT token của mình
-   - Không share file `.env` qua email/chat
-   - Backup file `.env` vào nơi an toàn (encrypted storage)
-   - Sử dụng tên file rõ ràng: `web-app-prod.env`, `api-staging.env`
+   - Không hardcode passwords trong scripts
+   - Dùng Azure Key Vault hoặc Variable Groups cho secrets
+   - Dùng Managed Identities khi có thể
 
 ---
 
-## Các Tính Năng Nâng Cao
+## 📚 Tài Liệu Tham Khảo
 
-### Sử dụng Variable Groups
-
-Thay vì hardcode giá trị trong scripts, bạn có thể dùng variable groups:
-
-1. Vào Azure DevOps → Pipelines → Library
-2. Tạo Variable Group mới
-3. Thêm variables (ví dụ: DB_HOST, API_KEY, etc.)
-4. Trong pipeline, link variable group vào từng stage
-5. Sử dụng trong script: `$(DB_HOST)`, `$(API_KEY)`
-
-### Approval Gates
-
-Để yêu cầu approval trước khi deploy:
-
-1. Vào pipeline → Edit
-2. Click vào stage cần approval (ví dụ: Production)
-3. Chọn **Pre-deployment conditions**
-4. Enable **Pre-deployment approvals**
-5. Thêm approvers
-
-### Notifications
-
-Cấu hình thông báo khi deployment thành công/thất bại:
-
-1. Vào Project Settings → Notifications
-2. Tạo subscription mới
-3. Chọn event: Release deployment completed/failed
-4. Chọn pipeline và email/Teams/Slack để nhận thông báo
+- [Azure DevOps REST API - Release Definitions](https://learn.microsoft.com/en-us/rest/api/azure/devops/release/definitions)
+- [Deployment Groups Documentation](https://learn.microsoft.com/en-us/azure/devops/pipelines/release/deployment-groups)
+- [Personal Access Tokens](https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate)
 
 ---
 
-## Hỗ Trợ
+## 🎉 Tổng Kết
 
-Nếu gặp vấn đề:
+Sau khi hoàn thành, bạn đã có:
 
-1. Đọc kỹ thông báo lỗi
-2. Kiểm tra lại file config
-3. Xem phần [Xử Lý Lỗi](#xử-lý-lỗi) ở trên
-4. Kiểm tra logs trong Azure DevOps
-5. Đọc file README.md (English) để biết thêm chi tiết
+✅ Azure DevOps Release Pipeline với 3 stages (Dev → Staging → Prod)
+✅ Auto-trigger dựa trên branches
+✅ Deployment groups với tag filtering
+✅ Pipeline variables và environment variables
+✅ Scripts được giữ nguyên từ pipeline gốc (Thai Nguyen's pipeline)
+✅ Owner information được preserve (thai.nguyen@gridbeyond.com)
 
----
-
-## Tổng Kết
-
-Sau khi hoàn thành hướng dẫn, bạn đã có:
-
-✅ Azure DevOps Release Pipeline tự động
-✅ 3 stages: Development → Staging → Production
-✅ Auto-trigger dựa trên branch
-✅ Deployment Groups với tag filtering
-✅ Inline deployment scripts
-✅ Hỗ trợ pipeline và repo ở các project khác nhau
-
-**Chúc bạn triển khai thành công!**
+**Chúc bạn triển khai thành công! 🚀**
