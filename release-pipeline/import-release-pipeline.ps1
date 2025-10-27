@@ -142,20 +142,20 @@ if (-not [string]::IsNullOrEmpty($REPO_URL)) {
     # https://{org}.visualstudio.com/{project}/_git/{repo}
 
     if ($REPO_URL -match 'https://dev\.azure\.com/([^/]+)/([^/]+)/_git/([^/]+)') {
-        $ORGANIZATION_NAME = $matches[1]
+        $REPO_ORGANIZATION_NAME = $matches[1]
         $REPO_PROJECT_NAME = $matches[2]
         $REPO_NAME = $matches[3]
         Write-Host "✓ Extracted from URL:" -ForegroundColor Green
-        Write-Host "  - Organization: $ORGANIZATION_NAME" -ForegroundColor Green
+        Write-Host "  - Organization: $REPO_ORGANIZATION_NAME" -ForegroundColor Green
         Write-Host "  - Project: $REPO_PROJECT_NAME" -ForegroundColor Green
         Write-Host "  - Repository: $REPO_NAME" -ForegroundColor Green
     }
     elseif ($REPO_URL -match 'https://([^.]+)\.visualstudio\.com/([^/]+)/_git/([^/]+)') {
-        $ORGANIZATION_NAME = $matches[1]
+        $REPO_ORGANIZATION_NAME = $matches[1]
         $REPO_PROJECT_NAME = $matches[2]
         $REPO_NAME = $matches[3]
         Write-Host "✓ Extracted from URL:" -ForegroundColor Green
-        Write-Host "  - Organization: $ORGANIZATION_NAME" -ForegroundColor Green
+        Write-Host "  - Organization: $REPO_ORGANIZATION_NAME" -ForegroundColor Green
         Write-Host "  - Project: $REPO_PROJECT_NAME" -ForegroundColor Green
         Write-Host "  - Repository: $REPO_NAME" -ForegroundColor Green
     }
@@ -176,12 +176,13 @@ if ([string]::IsNullOrEmpty($PIPELINE_PROJECT_NAME)) {
 }
 
 # Validate required variables
-if ([string]::IsNullOrEmpty($ORGANIZATION_NAME) -or
+if ([string]::IsNullOrEmpty($REPO_ORGANIZATION_NAME) -or
     [string]::IsNullOrEmpty($REPO_PROJECT_NAME) -or
     [string]::IsNullOrEmpty($AZURE_DEVOPS_PAT) -or
-    [string]::IsNullOrEmpty($REPO_NAME)) {
+    [string]::IsNullOrEmpty($REPO_NAME) -or
+    [string]::IsNullOrEmpty($PIPELINE_ORGANIZATION_NAME)) {
     Write-Host "Error: Missing required configuration!" -ForegroundColor Red
-    Write-Host "Please update config.local.ps1 with your values" -ForegroundColor Red
+    Write-Host "Please check your .env file" -ForegroundColor Red
     exit 1
 }
 
@@ -196,7 +197,7 @@ Write-Host ""
 Write-Host "Step 1: Fetching Repository Project ID..." -ForegroundColor Blue
 
 try {
-    $repoProjectUrl = "https://dev.azure.com/$ORGANIZATION_NAME/_apis/projects/$REPO_PROJECT_NAME`?api-version=7.1"
+    $repoProjectUrl = "https://dev.azure.com/$REPO_ORGANIZATION_NAME/_apis/projects/$REPO_PROJECT_NAME`?api-version=7.1"
     $repoProjectResponse = Invoke-RestMethod -Uri $repoProjectUrl -Method Get -Headers $headers
     $REPO_PROJECT_ID = $repoProjectResponse.id
 
@@ -216,11 +217,11 @@ Write-Host ""
 Write-Host "Step 2: Fetching Pipeline Project ID..." -ForegroundColor Blue
 
 try {
-    if ($PIPELINE_PROJECT_NAME -eq $REPO_PROJECT_NAME) {
+    if (($PIPELINE_PROJECT_NAME -eq $REPO_PROJECT_NAME) -and ($PIPELINE_ORGANIZATION_NAME -eq $REPO_ORGANIZATION_NAME)) {
         $PIPELINE_PROJECT_ID = $REPO_PROJECT_ID
         Write-Host "✓ Using same project for pipelines" -ForegroundColor Green
     } else {
-        $pipelineProjectUrl = "https://dev.azure.com/$ORGANIZATION_NAME/_apis/projects/$PIPELINE_PROJECT_NAME`?api-version=7.1"
+        $pipelineProjectUrl = "https://dev.azure.com/$PIPELINE_ORGANIZATION_NAME/_apis/projects/$PIPELINE_PROJECT_NAME`?api-version=7.1"
         $pipelineProjectResponse = Invoke-RestMethod -Uri $pipelineProjectUrl -Method Get -Headers $headers
         $PIPELINE_PROJECT_ID = $pipelineProjectResponse.id
 
@@ -241,7 +242,7 @@ Write-Host ""
 Write-Host "Step 3: Fetching Repository ID..." -ForegroundColor Blue
 
 try {
-    $repoUrl = "https://dev.azure.com/$ORGANIZATION_NAME/$REPO_PROJECT_NAME/_apis/git/repositories/$REPO_NAME`?api-version=7.1"
+    $repoUrl = "https://dev.azure.com/$REPO_ORGANIZATION_NAME/$REPO_PROJECT_NAME/_apis/git/repositories/$REPO_NAME`?api-version=7.1"
     $repoResponse = Invoke-RestMethod -Uri $repoUrl -Method Get -Headers $headers
     $REPO_ID = $repoResponse.id
 
@@ -264,9 +265,9 @@ if ([string]::IsNullOrEmpty($DEVELOPMENT_DEPLOYMENT_GROUP_ID) -or
     [string]::IsNullOrEmpty($STAGING_DEPLOYMENT_GROUP_ID) -or
     [string]::IsNullOrEmpty($PRODUCTION_DEPLOYMENT_GROUP_ID)) {
     Write-Host "Warning: Deployment Group IDs not configured" -ForegroundColor Yellow
-    Write-Host "Please update config.local.ps1 with deployment group IDs" -ForegroundColor Yellow
+    Write-Host "Please update your .env file with deployment group IDs" -ForegroundColor Yellow
     Write-Host "You can find them at:" -ForegroundColor Yellow
-    Write-Host "https://dev.azure.com/$ORGANIZATION_NAME/$PIPELINE_PROJECT_NAME/_settings/agentqueues" -ForegroundColor Yellow
+    Write-Host "https://dev.azure.com/$PIPELINE_ORGANIZATION_NAME/$PIPELINE_PROJECT_NAME/_settings/agentqueues" -ForegroundColor Yellow
     Write-Host ""
     $continue = Read-Host "Continue anyway? (y/n)"
     if ($continue -ne 'y' -and $continue -ne 'Y') {
@@ -309,9 +310,8 @@ function Convert-BranchesToConditions {
     return $conditions
 }
 
-# Combine all branches for the artifact trigger
-$allBranches = "$DEVELOPMENT_BRANCHES,$STAGING_BRANCHES,$PRODUCTION_BRANCHES"
-$allBranchesArray = Convert-BranchesToArray -branches $allBranches
+# Convert pipeline trigger branches to array
+$pipelineTriggerBranchesArray = Convert-BranchesToArray -branches $PIPELINE_TRIGGER_BRANCHES
 
 # Create branch conditions for each environment
 $developmentConditions = Convert-BranchesToConditions -branches $DEVELOPMENT_BRANCHES -repoName $REPO_NAME
@@ -363,14 +363,13 @@ $developmentVariablesJson = Convert-VariablesToJson -variables $DEVELOPMENT_VARI
 $stagingVariablesJson = Convert-VariablesToJson -variables $STAGING_VARIABLES
 $productionVariablesJson = Convert-VariablesToJson -variables $PRODUCTION_VARIABLES
 
-# Escape scripts for JSON (escape backslashes first, then quotes, then add newlines)
-$developmentScriptEscaped = $DEVELOPMENT_SCRIPT -replace '\\','\\\\' -replace '"','\"' -replace "`r`n","\n" -replace "`n","\n" -replace '\n$',''
-$stagingScriptEscaped = $STAGING_SCRIPT -replace '\\','\\\\' -replace '"','\"' -replace "`r`n","\n" -replace "`n","\n" -replace '\n$',''
-$productionScriptEscaped = $PRODUCTION_SCRIPT -replace '\\','\\\\' -replace '"','\"' -replace "`r`n","\n" -replace "`n","\n" -replace '\n$',''
+# Format PIPELINE_PATH with \\ prefix
+$pipelinePathFormatted = "\\$PIPELINE_PATH"
 
 # Replace placeholders
 $jsonDefinition = $jsonTemplate `
     -replace '<PIPELINE_NAME>', $PIPELINE_NAME `
+    -replace '<PIPELINE_PATH>', $pipelinePathFormatted `
     -replace '<REPO_PROJECT_ID>', $REPO_PROJECT_ID `
     -replace '<REPO_PROJECT_NAME>', $REPO_PROJECT_NAME `
     -replace '<PIPELINE_PROJECT_ID>', $PIPELINE_PROJECT_ID `
@@ -378,7 +377,7 @@ $jsonDefinition = $jsonTemplate `
     -replace '<REPO_ID>', $REPO_ID `
     -replace '<REPO_NAME>', $REPO_NAME `
     -replace '<DEFAULT_BRANCH>', $DEFAULT_BRANCH `
-    -replace '<ALL_BRANCHES_ARRAY>', $allBranchesArray `
+    -replace '<PIPELINE_TRIGGER_BRANCHES_ARRAY>', $pipelineTriggerBranchesArray `
     -replace '<DEVELOPMENT_CONDITIONS>', $developmentConditions `
     -replace '<STAGING_CONDITIONS>', $stagingConditions `
     -replace '<PRODUCTION_CONDITIONS>', $productionConditions `
@@ -388,13 +387,10 @@ $jsonDefinition = $jsonTemplate `
     -replace '<PRODUCTION_VARIABLES>', $productionVariablesJson `
     -replace '<DEVELOPMENT_DEPLOYMENT_GROUP_ID>', $DEVELOPMENT_DEPLOYMENT_GROUP_ID `
     -replace '<DEVELOPMENT_TAGS>', $developmentTagsJson `
-    -replace '<DEVELOPMENT_SCRIPT>', $developmentScriptEscaped `
     -replace '<STAGING_DEPLOYMENT_GROUP_ID>', $STAGING_DEPLOYMENT_GROUP_ID `
     -replace '<STAGING_TAGS>', $stagingTagsJson `
-    -replace '<STAGING_SCRIPT>', $stagingScriptEscaped `
     -replace '<PRODUCTION_DEPLOYMENT_GROUP_ID>', $PRODUCTION_DEPLOYMENT_GROUP_ID `
-    -replace '<PRODUCTION_TAGS>', $productionTagsJson `
-    -replace '<PRODUCTION_SCRIPT>', $productionScriptEscaped
+    -replace '<PRODUCTION_TAGS>', $productionTagsJson
 
 # Save processed JSON
 $jsonDefinition | Out-File -FilePath "release-definition.processed.json" -Encoding utf8
@@ -404,7 +400,7 @@ Write-Host ""
 Write-Host "Step 6: Importing release pipeline into $PIPELINE_PROJECT_NAME..." -ForegroundColor Blue
 
 try {
-    $importUrl = "https://vsrm.dev.azure.com/$ORGANIZATION_NAME/$PIPELINE_PROJECT_NAME/_apis/release/definitions?api-version=7.1"
+    $importUrl = "https://vsrm.dev.azure.com/$PIPELINE_ORGANIZATION_NAME/$PIPELINE_PROJECT_NAME/_apis/release/definitions?api-version=7.1"
     $importResponse = Invoke-RestMethod -Uri $importUrl -Method Post -Headers $headers -Body $jsonDefinition
 
     $RELEASE_ID = $importResponse.id
@@ -418,14 +414,14 @@ try {
     Write-Host "✓ Success!" -ForegroundColor Green
     Write-Host "=====================================" -ForegroundColor Green
     Write-Host "Release Pipeline ID: $RELEASE_ID" -ForegroundColor Green
-    Write-Host "Pipeline Name: Multi-Stage Auto Release" -ForegroundColor Green
+    Write-Host "Pipeline Name: $PIPELINE_NAME" -ForegroundColor Green
     Write-Host ""
     Write-Host "Pipeline Details:" -ForegroundColor Blue
-    Write-Host "  - Created in: $PIPELINE_PROJECT_NAME" -ForegroundColor Blue
-    Write-Host "  - Source repo: $REPO_PROJECT_NAME/$REPO_NAME" -ForegroundColor Blue
+    Write-Host "  - Created in: $PIPELINE_ORGANIZATION_NAME/$PIPELINE_PROJECT_NAME" -ForegroundColor Blue
+    Write-Host "  - Source repo: $REPO_ORGANIZATION_NAME/$REPO_PROJECT_NAME/$REPO_NAME" -ForegroundColor Blue
     Write-Host ""
     Write-Host "View your pipeline at:" -ForegroundColor Blue
-    Write-Host "https://dev.azure.com/$ORGANIZATION_NAME/$PIPELINE_PROJECT_NAME/_release?definitionId=$RELEASE_ID" -ForegroundColor Blue
+    Write-Host "https://dev.azure.com/$PIPELINE_ORGANIZATION_NAME/$PIPELINE_PROJECT_NAME/_release?definitionId=$RELEASE_ID" -ForegroundColor Blue
     Write-Host ""
     Write-Host "Next steps:" -ForegroundColor Yellow
     Write-Host "1. Tag servers in deployment groups with appropriate tags:" -ForegroundColor Yellow
