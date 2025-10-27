@@ -61,19 +61,19 @@ if [ -n "$REPO_URL" ]; then
     # https://{org}.visualstudio.com/{project}/_git/{repo}
 
     if [[ "$REPO_URL" =~ https://dev\.azure\.com/([^/]+)/([^/]+)/_git/([^/]+) ]]; then
-        ORGANIZATION_NAME="${BASH_REMATCH[1]}"
+        REPO_ORGANIZATION_NAME="${BASH_REMATCH[1]}"
         REPO_PROJECT_NAME="${BASH_REMATCH[2]}"
         REPO_NAME="${BASH_REMATCH[3]}"
         echo -e "${GREEN}✓ Extracted from URL:${NC}"
-        echo -e "${GREEN}  - Organization: ${ORGANIZATION_NAME}${NC}"
+        echo -e "${GREEN}  - Organization: ${REPO_ORGANIZATION_NAME}${NC}"
         echo -e "${GREEN}  - Project: ${REPO_PROJECT_NAME}${NC}"
         echo -e "${GREEN}  - Repository: ${REPO_NAME}${NC}"
     elif [[ "$REPO_URL" =~ https://([^.]+)\.visualstudio\.com/([^/]+)/_git/([^/]+) ]]; then
-        ORGANIZATION_NAME="${BASH_REMATCH[1]}"
+        REPO_ORGANIZATION_NAME="${BASH_REMATCH[1]}"
         REPO_PROJECT_NAME="${BASH_REMATCH[2]}"
         REPO_NAME="${BASH_REMATCH[3]}"
         echo -e "${GREEN}✓ Extracted from URL:${NC}"
-        echo -e "${GREEN}  - Organization: ${ORGANIZATION_NAME}${NC}"
+        echo -e "${GREEN}  - Organization: ${REPO_ORGANIZATION_NAME}${NC}"
         echo -e "${GREEN}  - Project: ${REPO_PROJECT_NAME}${NC}"
         echo -e "${GREEN}  - Repository: ${REPO_NAME}${NC}"
     else
@@ -93,9 +93,9 @@ if [ -z "$PIPELINE_PROJECT_NAME" ]; then
 fi
 
 # Validate required variables
-if [ -z "$ORGANIZATION_NAME" ] || [ -z "$REPO_PROJECT_NAME" ] || [ -z "$AZURE_DEVOPS_PAT" ] || [ -z "$REPO_NAME" ]; then
+if [ -z "$REPO_ORGANIZATION_NAME" ] || [ -z "$REPO_PROJECT_NAME" ] || [ -z "$AZURE_DEVOPS_PAT" ] || [ -z "$REPO_NAME" ] || [ -z "$PIPELINE_ORGANIZATION_NAME" ]; then
     echo -e "${RED}Error: Missing required configuration!${NC}"
-    echo -e "${RED}Please update config.local.sh with your values${NC}"
+    echo -e "${RED}Please check your .env file${NC}"
     exit 1
 fi
 
@@ -107,7 +107,7 @@ echo -e "${BLUE}Step 1: Fetching Repository Project ID...${NC}"
 REPO_PROJECT_RESPONSE=$(curl -s -X GET \
   -H "$AUTH_HEADER" \
   -H "Content-Type: application/json" \
-  "https://dev.azure.com/${ORGANIZATION_NAME}/_apis/projects/${REPO_PROJECT_NAME}?api-version=7.1")
+  "https://dev.azure.com/${REPO_ORGANIZATION_NAME}/_apis/projects/${REPO_PROJECT_NAME}?api-version=7.1")
 
 REPO_PROJECT_ID=$(echo $REPO_PROJECT_RESPONSE | grep -o '"id":"[^"]*' | head -1 | cut -d'"' -f4)
 
@@ -123,14 +123,14 @@ echo -e "${GREEN}✓ Repository Project ID: ${REPO_PROJECT_ID}${NC}"
 echo ""
 echo -e "${BLUE}Step 2: Fetching Pipeline Project ID...${NC}"
 
-if [ "$PIPELINE_PROJECT_NAME" = "$REPO_PROJECT_NAME" ]; then
+if [ "$PIPELINE_PROJECT_NAME" = "$REPO_PROJECT_NAME" ] && [ "$PIPELINE_ORGANIZATION_NAME" = "$REPO_ORGANIZATION_NAME" ]; then
     PIPELINE_PROJECT_ID="$REPO_PROJECT_ID"
     echo -e "${GREEN}✓ Using same project for pipelines${NC}"
 else
     PIPELINE_PROJECT_RESPONSE=$(curl -s -X GET \
       -H "$AUTH_HEADER" \
       -H "Content-Type: application/json" \
-      "https://dev.azure.com/${ORGANIZATION_NAME}/_apis/projects/${PIPELINE_PROJECT_NAME}?api-version=7.1")
+      "https://dev.azure.com/${PIPELINE_ORGANIZATION_NAME}/_apis/projects/${PIPELINE_PROJECT_NAME}?api-version=7.1")
 
     PIPELINE_PROJECT_ID=$(echo $PIPELINE_PROJECT_RESPONSE | grep -o '"id":"[^"]*' | head -1 | cut -d'"' -f4)
 
@@ -149,7 +149,7 @@ echo -e "${BLUE}Step 3: Fetching Repository ID...${NC}"
 REPO_RESPONSE=$(curl -s -X GET \
   -H "$AUTH_HEADER" \
   -H "Content-Type: application/json" \
-  "https://dev.azure.com/${ORGANIZATION_NAME}/${REPO_PROJECT_NAME}/_apis/git/repositories/${REPO_NAME}?api-version=7.1")
+  "https://dev.azure.com/${REPO_ORGANIZATION_NAME}/${REPO_PROJECT_NAME}/_apis/git/repositories/${REPO_NAME}?api-version=7.1")
 
 REPO_ID=$(echo $REPO_RESPONSE | grep -o '"id":"[^"]*' | head -1 | cut -d'"' -f4)
 
@@ -167,9 +167,9 @@ echo -e "${BLUE}Step 4: Validating Deployment Groups and Tags...${NC}"
 
 if [ -z "$DEVELOPMENT_DEPLOYMENT_GROUP_ID" ] || [ -z "$STAGING_DEPLOYMENT_GROUP_ID" ] || [ -z "$PRODUCTION_DEPLOYMENT_GROUP_ID" ]; then
     echo -e "${YELLOW}Warning: Deployment Group IDs not configured${NC}"
-    echo -e "${YELLOW}Please update config.local.sh with deployment group IDs${NC}"
+    echo -e "${YELLOW}Please update your .env file with deployment group IDs${NC}"
     echo -e "${YELLOW}You can find them at:${NC}"
-    echo -e "${YELLOW}https://dev.azure.com/${ORGANIZATION_NAME}/${PIPELINE_PROJECT_NAME}/_settings/agentqueues${NC}"
+    echo -e "${YELLOW}https://dev.azure.com/${PIPELINE_ORGANIZATION_NAME}/${PIPELINE_PROJECT_NAME}/_settings/agentqueues${NC}"
     echo ""
     read -p "Continue anyway? (y/n) " -n 1 -r
     echo
@@ -222,9 +222,8 @@ branches_to_conditions() {
     echo "$result"
 }
 
-# Combine all branches for the artifact trigger
-ALL_BRANCHES="${DEVELOPMENT_BRANCHES},${STAGING_BRANCHES},${PRODUCTION_BRANCHES}"
-ALL_BRANCHES_ARRAY=$(branches_to_array "$ALL_BRANCHES")
+# Convert pipeline trigger branches to array
+PIPELINE_TRIGGER_BRANCHES_ARRAY=$(branches_to_array "$PIPELINE_TRIGGER_BRANCHES")
 
 # Create branch conditions for each environment
 DEVELOPMENT_CONDITIONS=$(branches_to_conditions "$DEVELOPMENT_BRANCHES" "$REPO_NAME")
@@ -285,19 +284,13 @@ DEVELOPMENT_VARIABLES_JSON=$(variables_to_json "$DEVELOPMENT_VARIABLES")
 STAGING_VARIABLES_JSON=$(variables_to_json "$STAGING_VARIABLES")
 PRODUCTION_VARIABLES_JSON=$(variables_to_json "$PRODUCTION_VARIABLES")
 
-# Escape scripts for JSON (escape newlines, quotes, backslashes)
-DEVELOPMENT_SCRIPT_ESCAPED=$(echo "$DEVELOPMENT_SCRIPT" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | awk '{printf "%s\\n", $0}' | sed 's/\\n$//')
-STAGING_SCRIPT_ESCAPED=$(echo "$STAGING_SCRIPT" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | awk '{printf "%s\\n", $0}' | sed 's/\\n$//')
-PRODUCTION_SCRIPT_ESCAPED=$(echo "$PRODUCTION_SCRIPT" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | awk '{printf "%s\\n", $0}' | sed 's/\\n$//')
-
-# Escape again for sed replacement context (double-escape backslashes and escape &)
-DEVELOPMENT_SCRIPT_FOR_SED=$(printf '%s' "$DEVELOPMENT_SCRIPT_ESCAPED" | sed 's/\\/\\\\/g; s/&/\\&/g')
-STAGING_SCRIPT_FOR_SED=$(printf '%s' "$STAGING_SCRIPT_ESCAPED" | sed 's/\\/\\\\/g; s/&/\\&/g')
-PRODUCTION_SCRIPT_FOR_SED=$(printf '%s' "$PRODUCTION_SCRIPT_ESCAPED" | sed 's/\\/\\\\/g; s/&/\\&/g')
+# Format PIPELINE_PATH with \\ prefix
+PIPELINE_PATH_FORMATTED="\\\\${PIPELINE_PATH}"
 
 # Replace placeholders
 JSON_DEFINITION=$(echo "$JSON_TEMPLATE" | \
   sed "s/<PIPELINE_NAME>/$PIPELINE_NAME/g" | \
+  sed "s|<PIPELINE_PATH>|$PIPELINE_PATH_FORMATTED|g" | \
   sed "s/<REPO_PROJECT_ID>/$REPO_PROJECT_ID/g" | \
   sed "s/<REPO_PROJECT_NAME>/$REPO_PROJECT_NAME/g" | \
   sed "s/<PIPELINE_PROJECT_ID>/$PIPELINE_PROJECT_ID/g" | \
@@ -305,7 +298,7 @@ JSON_DEFINITION=$(echo "$JSON_TEMPLATE" | \
   sed "s/<REPO_ID>/$REPO_ID/g" | \
   sed "s/<REPO_NAME>/$REPO_NAME/g" | \
   sed "s/<DEFAULT_BRANCH>/$DEFAULT_BRANCH/g" | \
-  sed "s|<ALL_BRANCHES_ARRAY>|$ALL_BRANCHES_ARRAY|g" | \
+  sed "s|<PIPELINE_TRIGGER_BRANCHES_ARRAY>|$PIPELINE_TRIGGER_BRANCHES_ARRAY|g" | \
   sed "s|<DEVELOPMENT_CONDITIONS>|$DEVELOPMENT_CONDITIONS|g" | \
   sed "s|<STAGING_CONDITIONS>|$STAGING_CONDITIONS|g" | \
   sed "s|<PRODUCTION_CONDITIONS>|$PRODUCTION_CONDITIONS|g" | \
@@ -315,13 +308,10 @@ JSON_DEFINITION=$(echo "$JSON_TEMPLATE" | \
   sed "s|<PRODUCTION_VARIABLES>|$PRODUCTION_VARIABLES_JSON|g" | \
   sed "s/<DEVELOPMENT_DEPLOYMENT_GROUP_ID>/$DEVELOPMENT_DEPLOYMENT_GROUP_ID/g" | \
   sed "s|<DEVELOPMENT_TAGS>|$DEVELOPMENT_TAGS_JSON|g" | \
-  sed "s|<DEVELOPMENT_SCRIPT>|$DEVELOPMENT_SCRIPT_FOR_SED|g" | \
   sed "s/<STAGING_DEPLOYMENT_GROUP_ID>/$STAGING_DEPLOYMENT_GROUP_ID/g" | \
   sed "s|<STAGING_TAGS>|$STAGING_TAGS_JSON|g" | \
-  sed "s|<STAGING_SCRIPT>|$STAGING_SCRIPT_FOR_SED|g" | \
   sed "s/<PRODUCTION_DEPLOYMENT_GROUP_ID>/$PRODUCTION_DEPLOYMENT_GROUP_ID/g" | \
-  sed "s|<PRODUCTION_TAGS>|$PRODUCTION_TAGS_JSON|g" | \
-  sed "s|<PRODUCTION_SCRIPT>|$PRODUCTION_SCRIPT_FOR_SED|g")
+  sed "s|<PRODUCTION_TAGS>|$PRODUCTION_TAGS_JSON|g")
 
 # Save processed JSON
 echo "$JSON_DEFINITION" > release-definition.processed.json
@@ -334,7 +324,7 @@ IMPORT_RESPONSE=$(curl -s -X POST \
   -H "$AUTH_HEADER" \
   -H "Content-Type: application/json" \
   -d "$JSON_DEFINITION" \
-  "https://vsrm.dev.azure.com/${ORGANIZATION_NAME}/${PIPELINE_PROJECT_NAME}/_apis/release/definitions?api-version=7.1")
+  "https://vsrm.dev.azure.com/${PIPELINE_ORGANIZATION_NAME}/${PIPELINE_PROJECT_NAME}/_apis/release/definitions?api-version=7.1")
 
 # Check if import was successful
 RELEASE_ID=$(echo $IMPORT_RESPONSE | grep -o '"id":[0-9]*' | head -1 | cut -d':' -f2)
@@ -351,14 +341,14 @@ echo -e "${GREEN}=====================================${NC}"
 echo -e "${GREEN}✓ Success!${NC}"
 echo -e "${GREEN}=====================================${NC}"
 echo -e "${GREEN}Release Pipeline ID: ${RELEASE_ID}${NC}"
-echo -e "${GREEN}Pipeline Name: Multi-Stage Auto Release${NC}"
+echo -e "${GREEN}Pipeline Name: ${PIPELINE_NAME}${NC}"
 echo ""
 echo -e "${BLUE}Pipeline Details:${NC}"
-echo -e "${BLUE}  - Created in: ${PIPELINE_PROJECT_NAME}${NC}"
-echo -e "${BLUE}  - Source repo: ${REPO_PROJECT_NAME}/${REPO_NAME}${NC}"
+echo -e "${BLUE}  - Created in: ${PIPELINE_ORGANIZATION_NAME}/${PIPELINE_PROJECT_NAME}${NC}"
+echo -e "${BLUE}  - Source repo: ${REPO_ORGANIZATION_NAME}/${REPO_PROJECT_NAME}/${REPO_NAME}${NC}"
 echo ""
 echo -e "${BLUE}View your pipeline at:${NC}"
-echo -e "${BLUE}https://dev.azure.com/${ORGANIZATION_NAME}/${PIPELINE_PROJECT_NAME}/_release?definitionId=${RELEASE_ID}${NC}"
+echo -e "${BLUE}https://dev.azure.com/${PIPELINE_ORGANIZATION_NAME}/${PIPELINE_PROJECT_NAME}/_release?definitionId=${RELEASE_ID}${NC}"
 echo ""
 echo -e "${YELLOW}Next steps:${NC}"
 echo -e "${YELLOW}1. Tag servers in deployment groups with appropriate tags:${NC}"
