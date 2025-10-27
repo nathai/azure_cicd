@@ -1,5 +1,4 @@
 {
-  "name": "<PIPELINE_NAME>",
   "source": 2,
   "description": null,
   "variables": <PIPELINE_VARIABLES>,
@@ -74,14 +73,14 @@
           },
           "rank": 1,
           "phaseType": 4,
-          "name": "Deployment group job",
+          "name": "Deploy new version",
           "refName": null,
           "workflowTasks": [
             {
               "environment": {},
               "taskId": "d9bafed4-0b18-4f58-968d-86655b4d2ce9",
               "version": "2.*",
-              "name": "Deployment Script",
+              "name": "Build and push image",
               "refName": "",
               "enabled": true,
               "alwaysRun": false,
@@ -92,7 +91,78 @@
               "overrideInputs": {},
               "condition": "succeeded()",
               "inputs": {
-                "script": "<DEVELOPMENT_SCRIPT>",
+                "script": "echo \"Server: $(hostname)\"\n\necho \"User: $(whoami)\"\n\necho \"Artifact location: $(System.ArtifactsDirectory)\"\n\ncd  $(System.ArtifactsDirectory)/$(working_folder)\n\necho \"Working directory: $(pwd)\"\n\n\ndocker build -t $(acr_name).azurecr.io/$(image_name):$(tag) -f $(dockerfile_name) .\n\ndocker push $(acr_name).azurecr.io/$(image_name):$(tag)\n\n",
+                "workingDirectory": "$(System.ArtifactsDirectory)/$(working_folder)",
+                "failOnStderr": "false"
+              }
+            },
+            {
+              "environment": {},
+              "taskId": "d9bafed4-0b18-4f58-968d-86655b4d2ce9",
+              "version": "2.*",
+              "name": "Deploy stack",
+              "refName": "",
+              "enabled": true,
+              "alwaysRun": false,
+              "continueOnError": false,
+              "timeoutInMinutes": 0,
+              "retryCountOnTaskFailure": 3,
+              "definitionType": "task",
+              "overrideInputs": {},
+              "condition": "succeeded()",
+              "inputs": {
+                "script": "cd $(stack_folder)\necho \"Working directory: $(pwd)\"\ndocker stack rm $(stack_name)\nsleep 5\ndocker stack deploy -c $(stack_yaml) $(stack_name) --with-registry-auth\n",
+                "workingDirectory": "$(stack_folder) ",
+                "failOnStderr": "false"
+              }
+            }
+          ]
+        },
+        {
+          "deploymentInput": {
+            "healthPercent": 0,
+            "deploymentHealthOption": "Custom",
+            "tags": [],
+            "skipArtifactsDownload": false,
+            "artifactsDownloadInput": {
+              "downloadInputs": [
+                {
+                  "alias": "_<REPO_NAME>",
+                  "artifactType": "Git",
+                  "artifactDownloadMode": "Skip",
+                  "artifactItems": []
+                }
+              ]
+            },
+            "queueId": <DEVELOPMENT_DEPLOYMENT_GROUP_ID>,
+            "demands": [],
+            "enableAccessToken": false,
+            "timeoutInMinutes": 0,
+            "jobCancelTimeoutInMinutes": 1,
+            "condition": "succeeded()",
+            "overrideInputs": {}
+          },
+          "rank": 2,
+          "phaseType": 4,
+          "name": "Reload Nginx",
+          "refName": null,
+          "workflowTasks": [
+            {
+              "environment": {},
+              "taskId": "d9bafed4-0b18-4f58-968d-86655b4d2ce9",
+              "version": "2.*",
+              "name": "Reload Nginx",
+              "refName": "",
+              "enabled": true,
+              "alwaysRun": false,
+              "continueOnError": false,
+              "timeoutInMinutes": 0,
+              "retryCountOnTaskFailure": 0,
+              "definitionType": "task",
+              "overrideInputs": {},
+              "condition": "succeeded()",
+              "inputs": {
+                "script": "\necho Reloading Nginx \n\ndocker exec $(docker ps -q -f \"name=nginx_nginx\") nginx -s reload",
                 "workingDirectory": "",
                 "failOnStderr": "false"
               }
@@ -234,7 +304,7 @@
               "environment": {},
               "taskId": "d9bafed4-0b18-4f58-968d-86655b4d2ce9",
               "version": "2.*",
-              "name": "Deployment Script",
+              "name": "Build and push image",
               "refName": "",
               "enabled": true,
               "alwaysRun": false,
@@ -245,7 +315,7 @@
               "overrideInputs": {},
               "condition": "succeeded()",
               "inputs": {
-                "script": "<STAGING_SCRIPT>",
+                "script": "echo Write your commands here\n\necho Hello world\n\necho \"docker build -t $(acr_name).azurecr.io/$(image_name):$(tag) -f $(dockerfile_name) .\"\n\necho \"docker push $(acr_name).azurecr.io/$(image_name):$(tag)\"",
                 "workingDirectory": "",
                 "failOnStderr": "false"
               }
@@ -387,7 +457,7 @@
               "environment": {},
               "taskId": "d9bafed4-0b18-4f58-968d-86655b4d2ce9",
               "version": "2.*",
-              "name": "Deployment Script",
+              "name": "Build and push image",
               "refName": "",
               "enabled": true,
               "alwaysRun": false,
@@ -398,7 +468,7 @@
               "overrideInputs": {},
               "condition": "succeeded()",
               "inputs": {
-                "script": "<PRODUCTION_SCRIPT>",
+                "script": "echo Write your commands here\n\necho Hello world\n\necho \"docker build -t $(acr_name).azurecr.io/$(image_name):$(tag) -f $(dockerfile_name) .\"\n\necho \"docker push $(acr_name).azurecr.io/$(image_name):$(tag)\"",
                 "workingDirectory": "",
                 "failOnStderr": "false"
               }
@@ -514,7 +584,7 @@
   ],
   "triggers": [
     {
-      "branchFilters": <ALL_BRANCHES_ARRAY>,
+      "branchFilters": <PIPELINE_TRIGGER_BRANCHES_ARRAY>,
       "alias": "_<REPO_NAME>",
       "triggerType": 3
     }
@@ -535,6 +605,7 @@
       "$value": "false"
     }
   },
-  "path": "\\",
+  "name": "<PIPELINE_NAME>",
+  "path": "<PIPELINE_PATH>",
   "projectReference": null
 }
