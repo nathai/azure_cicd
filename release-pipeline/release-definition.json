@@ -5,12 +5,12 @@
   "variableGroups": [],
   "environments": [
     {
-      "id": -1,
       "name": "Development",
       "rank": 1,
       "owner": {
-        "displayName": "Auto",
-        "id": null
+        "displayName": "Thai Nguyen",
+        "id": "e7cdbd53-e01f-6d38-b1b3-bb938d38e4a8",
+        "uniqueName": "thai.nguyen@gridbeyond.com"
       },
       "variables": <DEVELOPMENT_VARIABLES>,
       "variableGroups": [],
@@ -19,8 +19,7 @@
           {
             "rank": 1,
             "isAutomated": true,
-            "isNotificationOn": false,
-            "id": 0
+            "isNotificationOn": false
           }
         ],
         "approvalOptions": {
@@ -32,16 +31,13 @@
           "executionOrder": 1
         }
       },
-      "deployStep": {
-        "id": 0
-      },
+      "deployStep": {},
       "postDeployApprovals": {
         "approvals": [
           {
             "rank": 1,
             "isAutomated": true,
-            "isNotificationOn": false,
-            "id": 0
+            "isNotificationOn": false
           }
         ],
         "approvalOptions": {
@@ -195,11 +191,6 @@
         "queueDepthCount": 0
       },
       "schedules": [],
-      "currentRelease": {
-        "id": 0,
-        "url": "",
-        "_links": {}
-      },
       "retentionPolicy": {
         "daysToKeep": 30,
         "releasesToKeep": 3,
@@ -229,12 +220,12 @@
       "environmentTriggers": []
     },
     {
-      "id": -1,
       "name": "Staging",
       "rank": 2,
       "owner": {
-        "displayName": "Auto",
-        "id": null
+        "displayName": "Thai Nguyen",
+        "id": "e7cdbd53-e01f-6d38-b1b3-bb938d38e4a8",
+        "uniqueName": "thai.nguyen@gridbeyond.com"
       },
       "variables": <STAGING_VARIABLES>,
       "variableGroups": [],
@@ -243,8 +234,7 @@
           {
             "rank": 1,
             "isAutomated": true,
-            "isNotificationOn": false,
-            "id": 0
+            "isNotificationOn": false
           }
         ],
         "approvalOptions": {
@@ -256,16 +246,13 @@
           "executionOrder": 1
         }
       },
-      "deployStep": {
-        "id": 0
-      },
+      "deployStep": {},
       "postDeployApprovals": {
         "approvals": [
           {
             "rank": 1,
             "isAutomated": true,
-            "isNotificationOn": false,
-            "id": 0
+            "isNotificationOn": false
           }
         ],
         "approvalOptions": {
@@ -348,11 +335,6 @@
         "queueDepthCount": 0
       },
       "schedules": [],
-      "currentRelease": {
-        "id": 0,
-        "url": "",
-        "_links": {}
-      },
       "retentionPolicy": {
         "daysToKeep": 30,
         "releasesToKeep": 3,
@@ -382,12 +364,12 @@
       "environmentTriggers": []
     },
     {
-      "id": -1,
       "name": "Production",
       "rank": 3,
       "owner": {
-        "displayName": "Auto",
-        "id": null
+        "displayName": "Thai Nguyen",
+        "id": "e7cdbd53-e01f-6d38-b1b3-bb938d38e4a8",
+        "uniqueName": "thai.nguyen@gridbeyond.com"
       },
       "variables": <PRODUCTION_VARIABLES>,
       "variableGroups": [],
@@ -396,8 +378,7 @@
           {
             "rank": 1,
             "isAutomated": true,
-            "isNotificationOn": false,
-            "id": 0
+            "isNotificationOn": false
           }
         ],
         "approvalOptions": {
@@ -409,16 +390,13 @@
           "executionOrder": 1
         }
       },
-      "deployStep": {
-        "id": 0
-      },
+      "deployStep": {},
       "postDeployApprovals": {
         "approvals": [
           {
             "rank": 1,
             "isAutomated": true,
-            "isNotificationOn": false,
-            "id": 0
+            "isNotificationOn": false
           }
         ],
         "approvalOptions": {
@@ -501,11 +479,6 @@
         "queueDepthCount": 0
       },
       "schedules": [],
-      "currentRelease": {
-        "id": 0,
-        "url": "",
-        "_links": {}
-      },
       "retentionPolicy": {
         "daysToKeep": 30,
         "releasesToKeep": 3,
@@ -606,6 +579,5 @@
     }
   },
   "name": "<PIPELINE_NAME>",
-  "path": "<PIPELINE_PATH>",
-  "projectReference": null
+  "path": "<PIPELINE_PATH>"
 }
