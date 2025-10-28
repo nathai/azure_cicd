@@ -35,10 +35,108 @@ if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
     exit 0
 fi
 
+# Function to parse .env file with multiline support
+parse_env_file() {
+    local env_file="$1"
+    local current_var=""
+    local current_value=""
+    local in_multiline=false
+    local quote_type=""
+
+    if [ ! -f "$env_file" ]; then
+        return 1
+    fi
+
+    while IFS= read -r line || [ -n "$line" ]; do
+        # Skip comments and empty lines when not in multiline
+        if [ "$in_multiline" = false ]; then
+            # Skip empty lines
+            if [[ "$line" =~ ^[[:space:]]*$ ]]; then
+                continue
+            fi
+            # Skip comment lines
+            if [[ "$line" =~ ^[[:space:]]*# ]]; then
+                continue
+            fi
+        fi
+
+        # Check if starting a new variable assignment
+        if [ "$in_multiline" = false ] && [[ "$line" =~ ^([A-Z_][A-Z0-9_]*)=(.*)$ ]]; then
+            local var_name="${BASH_REMATCH[1]}"
+            local var_value="${BASH_REMATCH[2]}"
+
+            # Check if value starts with a quote
+            if [[ "$var_value" =~ ^\"(.*)$ ]]; then
+                # Double-quoted string
+                quote_type='"'
+                var_value="${BASH_REMATCH[1]}"
+
+                # Check if it ends on the same line
+                if [[ "$var_value" =~ ^(.*)\"$ ]]; then
+                    # Single-line quoted string
+                    var_value="${BASH_REMATCH[1]}"
+                    export "$var_name=$var_value"
+                else
+                    # Start of multiline string
+                    in_multiline=true
+                    current_var="$var_name"
+                    current_value="$var_value"
+                fi
+            elif [[ "$var_value" =~ ^\'(.*)$ ]]; then
+                # Single-quoted string
+                quote_type="'"
+                var_value="${BASH_REMATCH[1]}"
+
+                # Check if it ends on the same line
+                if [[ "$var_value" =~ ^(.*)\'$ ]]; then
+                    # Single-line quoted string
+                    var_value="${BASH_REMATCH[1]}"
+                    export "$var_name=$var_value"
+                else
+                    # Start of multiline string
+                    in_multiline=true
+                    current_var="$var_name"
+                    current_value="$var_value"
+                fi
+            else
+                # Unquoted value
+                export "$var_name=$var_value"
+            fi
+        elif [ "$in_multiline" = true ]; then
+            # Continue reading multiline string
+            if [[ "$quote_type" == '"' ]] && [[ "$line" =~ ^(.*)\"$ ]]; then
+                # End of double-quoted multiline string
+                current_value="$current_value"$'\n'"${BASH_REMATCH[1]}"
+                export "$current_var=$current_value"
+                in_multiline=false
+                current_var=""
+                current_value=""
+                quote_type=""
+            elif [[ "$quote_type" == "'" ]] && [[ "$line" =~ ^(.*)\'$ ]]; then
+                # End of single-quoted multiline string
+                current_value="$current_value"$'\n'"${BASH_REMATCH[1]}"
+                export "$current_var=$current_value"
+                in_multiline=false
+                current_var=""
+                current_value=""
+                quote_type=""
+            else
+                # Continue multiline
+                current_value="$current_value"$'\n'"$line"
+            fi
+        fi
+    done < "$env_file"
+
+    return 0
+}
+
 # Load configuration
 if [ -f "$ENV_FILE" ]; then
     echo -e "${GREEN}Loading configuration from: ${ENV_FILE}${NC}"
-    source "$ENV_FILE"
+    if ! parse_env_file "$ENV_FILE"; then
+        echo -e "${RED}Error: Failed to parse configuration file${NC}"
+        exit 1
+    fi
 else
     echo -e "${RED}Error: Configuration file not found: ${ENV_FILE}${NC}"
     echo ""
@@ -216,7 +314,8 @@ branches_to_conditions() {
 
     IFS=',' read -ra BRANCH_ARRAY <<< "$branches"
     for branch in "${BRANCH_ARRAY[@]}"; do
-        result="$result,{\"name\":\"_$repo_name\",\"conditionType\":4,\"value\":\"{\\\"sourceBranch\\\":\\\"$branch\\\",\\\"tags\\\":[]}\",\"result\":null}"
+        # Need extra escaping for sed: \\\\" gives \\" in JSON which displays as \"
+        result="$result,{\"name\":\"_$repo_name\",\"conditionType\":4,\"value\":\"{\\\\\"sourceBranch\\\\\":\\\\\"$branch\\\\\",\\\\\"tags\\\\\":[]}\",\"result\":null}"
     done
 
     echo "$result"
@@ -285,7 +384,8 @@ STAGING_VARIABLES_JSON=$(variables_to_json "$STAGING_VARIABLES")
 PRODUCTION_VARIABLES_JSON=$(variables_to_json "$PRODUCTION_VARIABLES")
 
 # Format PIPELINE_PATH with \\ prefix
-PIPELINE_PATH_FORMATTED="\\\\${PIPELINE_PATH}"
+# Need 4 backslashes in bash string to get 2 in JSON (sed eats one level of escaping)
+PIPELINE_PATH_FORMATTED="\\\\\\\\${PIPELINE_PATH}"
 
 # Replace placeholders
 JSON_DEFINITION=$(echo "$JSON_TEMPLATE" | \
